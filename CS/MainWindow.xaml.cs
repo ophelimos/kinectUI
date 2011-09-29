@@ -110,10 +110,23 @@ namespace SkeletalViewer
         // that displays different players in different colors
         byte[] convertDepthFrame(byte[] depthFrame16)
         {
+            // We're going to average depth frame values for the person to compute their average distance away
+            int numPlayers = 8;
+            List<int>[] avgDepths = new List<int>[numPlayers];
+            for (int i = 0; i < numPlayers; i++) {
+                avgDepths[i] = new List<int>();
+            }
             for (int i16 = 0, i32 = 0; i16 < depthFrame16.Length && i32 < depthFrame32.Length; i16 += 2, i32 += 4)
             {
                 int player = depthFrame16[i16] & 0x07;
                 int realDepth = (depthFrame16[i16+1] << 5) | (depthFrame16[i16] >> 3);
+
+                // Compute for later averaging
+                if (player != 0)
+                {
+                    avgDepths[player].Add(realDepth);
+                }
+
                 // transform 13-bit depth information into an 8-bit intensity appropriate
                 // for display (we disregard information in most significant bit)
                 byte intensity = (byte)(255 - (255 * realDepth / 0x0fff));
@@ -125,15 +138,15 @@ namespace SkeletalViewer
                 // choose different display colors based on player
                 switch (player)
                 {
-                    case 0:
+                    case 0: // No player
                         depthFrame32[i32 + RED_IDX] = (byte)(intensity / 2);
                         depthFrame32[i32 + GREEN_IDX] = (byte)(intensity / 2);
                         depthFrame32[i32 + BLUE_IDX] = (byte)(intensity / 2);
                         break;
-                    case 1:
+                    case 1: // Player 1
                         depthFrame32[i32 + RED_IDX] = intensity;
                         break;
-                    case 2:
+                    case 2: // Player 2
                         depthFrame32[i32 + GREEN_IDX] = intensity;
                         break;
                     case 3:
@@ -163,6 +176,17 @@ namespace SkeletalViewer
                         break;
                 }
             }
+            // Update distance measurements
+            foreach (List<int> depths in avgDepths)
+            {
+                if (depths.Count() > 0)
+                {
+                    double averageDistanceInMM = depths.Average();
+                    double averageDistanceInM = averageDistanceInMM / 1000;
+                    distance.Text = averageDistanceInM.ToString() + "m";
+                }
+            }
+
             return depthFrame32;
         }
 
