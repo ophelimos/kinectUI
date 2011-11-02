@@ -4,12 +4,12 @@
         Title="MainWindow" Icon="SkeletalViewer.ico" ResizeMode="CanMinimize" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded" Closed="Window_Closed">
     <StackPanel>
-        <StackPanel Orientation="Horizontal">
-            <StackPanel>
+        <StackPanel Orientation="Horizontal" Name="debugPanel1">
+            <StackPanel Name="depthPanel">
                 <TextBox FontSize="18" Focusable="False" BorderThickness="0" Text="Depth Stream" HorizontalAlignment="Center"/>
                 <Image Width="400" Height="300" Name="depth" Margin="10 0 10 10"/>
             </StackPanel>
-            <StackPanel>
+            <StackPanel Name="skeletonPanel">
                 <TextBox FontSize="18" Focusable="False" BorderThickness="0" Text="Skeleton (rendered if full body fits in frame)" HorizontalAlignment="Center"/>
                 <Canvas Width="400" Height="300" Name="skeleton" Margin="10 0 10 10" Background="Black" ClipToBounds="True"/>
             </StackPanel>
@@ -17,11 +17,11 @@
                 <TextBox FontSize="72" Name="distance" Margin="10" Focusable="False" BorderThickness="0" Text="0 m" TextAlignment="Right" HorizontalAlignment="Center" VerticalAlignment="Center" Width="250"/>
             </Viewbox>
         </StackPanel>
-        <StackPanel Orientation="Horizontal">
+        <StackPanel Orientation="Horizontal" Name="debugPanel2">
             <Viewbox Width="400" Margin="10" Stretch="None" VerticalAlignment="Stretch">
                 <TextBox FontSize="72" Name="frameRate" Margin="10" Focusable="False" BorderThickness="0" Text="0 fps" TextAlignment="Right" HorizontalAlignment="Center" VerticalAlignment="Center" Width="250"/>
             </Viewbox>
-            <StackPanel>
+            <StackPanel Name="videoPanel">
                 <TextBox FontSize="18" Focusable="False" BorderThickness="0" Text="Color Video Stream" HorizontalAlignment="Center" Name="VideoCaption" />
                 <Image Width="400" Height="300" Name="video" Margin="10 0 10 10"/>
             </StackPanel>

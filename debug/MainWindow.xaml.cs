@@ -296,5 +296,36 @@ namespace SkeletalViewer
             Environment.Exit(0);
         }
 
+
+        protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.B)
+            {
+                //System.Windows.Forms.MessageBox.Show("Pressed B");
+                //if (this.IsVisible)
+                //{
+                //    this.Hide();
+                //}
+                //else
+                //{
+                //    this.Show();
+                //}
+                StackPanel[] panels = {debugPanel1, debugPanel2};
+
+                // depth skeleton distance frameRate video
+                foreach (StackPanel panel in panels)
+                {
+                    if (panel.IsVisible)
+                    {
+                        panel.Visibility = System.Windows.Visibility.Hidden;
+                    }
+                    else
+                    {
+                        panel.Visibility = System.Windows.Visibility.Visible;
+                    }
+                }
+            }
+        }
+
     }
 }
