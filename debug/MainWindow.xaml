@@ -25,6 +25,9 @@
                 <TextBox FontSize="18" Focusable="False" BorderThickness="0" Text="Color Video Stream" HorizontalAlignment="Center" Name="VideoCaption" />
                 <Image Width="400" Height="300" Name="video" Margin="10 0 10 10"/>
             </StackPanel>
+            <Viewbox Width="400" Margin="10" Stretch="None" VerticalAlignment="Stretch">
+                <TextBox FontSize="72" Name="user" Margin="10" Focusable="False" BorderThickness="0" Text="User 0" TextAlignment="Right" HorizontalAlignment="Center" VerticalAlignment="Center" Width="250"/>
+            </Viewbox>
         </StackPanel>
     </StackPanel>
 </Window>

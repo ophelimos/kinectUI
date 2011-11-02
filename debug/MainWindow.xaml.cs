@@ -48,7 +48,9 @@ namespace SkeletalViewer
         const int GREEN_IDX = 1;
         const int BLUE_IDX = 0;
         byte[] depthFrame32 = new byte[320 * 240 * 4];
-        
+
+        // Keep track of who the active player is - the one whose position we care about
+        int activePlayer = 1;
         
         Dictionary<JointID,Brush> jointColors = new Dictionary<JointID,Brush>() { 
             {JointID.HipCenter, new SolidColorBrush(Color.FromRgb(169, 176, 155))},
@@ -177,13 +179,15 @@ namespace SkeletalViewer
                 }
             }
             // Update distance measurements
-            foreach (List<int> depths in avgDepths)
+            for (int i = 0; i < avgDepths.Length; i++)
             {
+                List<int> depths = avgDepths[i];
                 if (depths.Count() > 0)
                 {
                     double averageDistanceInMM = depths.Average();
                     double averageDistanceInM = averageDistanceInMM / 1000;
-                    distance.Text = averageDistanceInM.ToString() + "m";
+                    activePlayer = i;
+                    //distance.Text = averageDistanceInM.ToString() + "m";
                 }
             }
 
@@ -213,9 +217,23 @@ namespace SkeletalViewer
         private Point getDisplayPosition(Joint joint)
         {
             float depthX, depthY;
-            nui.SkeletonEngine.SkeletonToDepthImage(joint.Position, out depthX, out depthY);
+            short depthValue16;
+            nui.SkeletonEngine.SkeletonToDepthImage(joint.Position, out depthX, out depthY, out depthValue16);
+            // Last three bits
+            int player = depthValue16 & 0x07;
+            // Everything but the last three bits
+            int realDepthInMM = (depthValue16 >> 3);
+
+            if (joint.ID == JointID.Head)
+            {
+                double realDepthInM = ((double) realDepthInMM) / 1000.0;
+                distance.Text = realDepthInM.ToString() + "m";
+                user.Text = "User " + player;
+            }
+
             depthX = Math.Max(0, Math.Min(depthX * 320, 320));  //convert to 320, 240 space
             depthY = Math.Max(0, Math.Min(depthY * 240, 240));  //convert to 320, 240 space
+
             int colorX, colorY;
             ImageViewArea iv = new ImageViewArea();
             // only ImageResolution.Resolution640x480 is supported at this point
