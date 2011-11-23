@@ -195,6 +195,25 @@ ATOM RegisterHostWindowClass(HINSTANCE hInstance)
 }
 
 //
+// FUNCTION: UpdateMagnificationFactor()
+//
+// PURPOSE: Change the amount the window is magnified
+//
+BOOL UpdateMagnificationFactor()
+{
+    MagFactor = GetMagnificationFactor();
+    // Set the magnification factor.
+    MAGTRANSFORM matrix;
+    memset(&matrix, 0, sizeof(matrix));
+    matrix.v[0][0] = MagFactor;
+    matrix.v[1][1] = MagFactor;
+    matrix.v[2][2] = 1.0f;
+
+    BOOL ret = MagSetWindowTransform(hwndMag, &matrix);
+	return ret;
+}
+
+//
 // FUNCTION: SetupMagnifier
 //
 // PURPOSE: Creates the windows and initializes magnification.
@@ -231,19 +250,8 @@ BOOL SetupMagnifier(HINSTANCE hinst)
         return FALSE;
     }
 
-    MagFactor = GetMagnificationFactor();
-    // Set the magnification factor.
-    MAGTRANSFORM matrix;
-    memset(&matrix, 0, sizeof(matrix));
-    matrix.v[0][0] = MagFactor;
-    matrix.v[1][1] = MagFactor;
-    matrix.v[2][2] = 1.0f;
-
-    BOOL ret = MagSetWindowTransform(hwndMag, &matrix);
-    
-    return ret;  
+    return UpdateMagnificationFactor();
 }
-
 
 //
 // FUNCTION: UpdateMagWindow()
@@ -252,6 +260,8 @@ BOOL SetupMagnifier(HINSTANCE hinst)
 //
 void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/)
 {
+	UpdateMagnificationFactor();
+
     POINT mousePoint;
     GetCursorPos(&mousePoint);
 
@@ -453,13 +463,13 @@ int CaptureAnImage(HWND hWnd)
 
 
 float GetMagnificationFactor(){
-    if (distanceInMM == 0)
+    if (distanceInMM < 1000)
 	{
-		return 2.0f;
+		return 1.0f;
 	}
 	else
 	{
-		float convertedDistance = (distanceInMM / 1000.0f) * 1.5f;
+		float convertedDistance = distanceInMM / 1000.0f;
 		return convertedDistance;
 	}
 }

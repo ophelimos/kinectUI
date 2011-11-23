@@ -229,16 +229,16 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
         }
         break;
 		// Handle key presses
-		case WM_KEYUP:
+		//case WM_KEYUP:
 			//switch (wParam)
 			//{
 			//default:
 				// Print the info about the key I just pressed
-				char msg[1024];
-				sprintf_s (msg, 1024, "wParam: %s lParam: %s", wParam, lParam);
-				MessageBox(hWnd, msg, TEXT("Display pressed character"), NULL);
+				//char msg[1024];
+				//sprintf_s (msg, 1024, "wParam: %s lParam: %s", wParam, lParam);
+				//MessageBox(hWnd, msg, TEXT("Display pressed character"), NULL);
 			//}
-			break;
+			//break;
         // If the titlebar X is clicked destroy app
         case WM_CLOSE:
             DestroyWindow(hWnd);
