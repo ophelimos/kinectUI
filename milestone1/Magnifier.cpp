@@ -36,40 +36,7 @@
 * PARTICULAR PURPOSE.
 * 
 *************************************************************************************************/
-
-// Ensure that the following definition is in effect before winuser.h is included.
-#define _WIN32_WINNT 0x0501    
-
-#include <windows.h>
-#include <wincodec.h>
-#include <magnification.h>
-#include "SkeletalViewer.h"
-
-#define RESTOREDWINDOWSTYLES WS_SIZEBOX | WS_SYSMENU | WS_CLIPCHILDREN | WS_CAPTION | WS_MAXIMIZEBOX
-
-// Global variables and strings.
-HINSTANCE           hInst;
-float               MagFactor;
-const TCHAR         WindowClassName[]= TEXT("MagnifierWindow");
-const TCHAR         WindowTitle[]= TEXT("Screen Magnifier");
-const UINT          timerInterval = 16; // close to the refresh rate @60hz
-HWND                hwndMag;
-HWND                hwndView;
-HWND                hwndHost;
-RECT                magWindowRect;
-RECT                hostWindowRect;
-
-// Forward declarations.
-ATOM                RegisterHostWindowClass(HINSTANCE hInstance);
-BOOL                SetupMagnifier(HINSTANCE hinst);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-void CALLBACK       UpdateMagWindow(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
-void                GoFullScreen();
-int                 CaptureAnImage(HWND hwnd);
-float               GetMagnificationFactor();
-BOOL                isFullScreen = FALSE;
-
-extern int distanceInMM;
+#include "Magnifier.h"
 
 //
 // FUNCTION: WinMain()
@@ -89,7 +56,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
             StartSkeletalViewer,       // thread function name
             hInstance,          // argument to thread function 
             0,                      // use default creation flags 
-            NULL);   // returns the thread identifier
+            NULL);   // returns the thread identifier 
     if (FALSE == MagInitialize())
     {
         return 0;
@@ -117,6 +84,18 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     KillTimer(NULL, timerId);
     MagUninitialize();
     return (int) msg.wParam;
+}
+
+
+
+//
+// FUNCTION: ViewWndProc()
+//
+// PURPOSE: Window procedure for the window that hosts the magnifier control.
+//
+LRESULT CALLBACK ViewWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{        
+    return DefWindowProc(hWnd, message, wParam, lParam);        
 }
 
 //
@@ -195,6 +174,26 @@ ATOM RegisterHostWindowClass(HINSTANCE hInstance)
 }
 
 //
+//  FUNCTION: RegisterViewfinderWindowClass()
+//
+//  PURPOSE: Registers the window class for the window that contains the magnification control.
+//
+ATOM RegisterViewfinderWindowClass(HINSTANCE hInstance)
+{
+    WNDCLASSEX wcex = {};
+
+    wcex.cbSize = sizeof(WNDCLASSEX); 
+    wcex.style          = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc    = HostWndProc;
+    wcex.hInstance      = hInstance;
+    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
+    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
+    wcex.lpszClassName  = ViewfinderClassName;
+
+    return RegisterClassEx(&wcex);
+}
+
+//
 // FUNCTION: UpdateMagnificationFactor()
 //
 // PURPOSE: Change the amount the window is magnified
@@ -218,7 +217,7 @@ BOOL UpdateMagnificationFactor()
 //
 // PURPOSE: Creates the windows and initializes magnification.
 //
-BOOL SetupMagnifier(HINSTANCE hinst)
+BOOL SetupMagnifier(HINSTANCE hInst)
 {
     // Set bounds of host window according to screen size.
     hostWindowRect.top = 0;
@@ -226,8 +225,10 @@ BOOL SetupMagnifier(HINSTANCE hinst)
     hostWindowRect.left = 0;
     hostWindowRect.right = GetSystemMetrics(SM_CXSCREEN);
 
-    // Create the host window.
-    RegisterHostWindowClass(hinst);
+    // Create the host and viewfinder windows.
+    RegisterHostWindowClass(hInst);
+    RegisterViewfinderWindowClass(hInst);
+
     hwndHost = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
         WindowClassName, WindowTitle, 
         RESTOREDWINDOWSTYLES,
@@ -250,7 +251,53 @@ BOOL SetupMagnifier(HINSTANCE hinst)
         return FALSE;
     }
 
+    SetupViewfinder(hInst);
+
     return UpdateMagnificationFactor();
+}
+
+//
+// FUNCTION: SetupViewfinder
+//
+// PURPOSE: Creates the Viewfinder window
+//
+BOOL SetupViewfinder(HINSTANCE hInst)
+{
+    HDC hDC = GetDC(NULL);
+    int xRes = GetSystemMetrics(SM_CXSCREEN);
+    int yRes = GetSystemMetrics(SM_CYSCREEN);
+    ReleaseDC(NULL, hDC);
+
+    // Set bounds of viewfinder window according to screen size.
+    viewfinderWindowRect.top = yRes-(yRes/5);    
+    viewfinderWindowRect.bottom = viewfinderWindowRect.top + (yRes/5);
+    viewfinderWindowRect.left = 0;
+    viewfinderWindowRect.right = xRes/5;    
+    hwndViewfinder = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
+        ViewfinderClassName, ViewWindowTitle, 
+        WS_VISIBLE | WS_POPUP,
+        viewfinderWindowRect.left, viewfinderWindowRect.top, viewfinderWindowRect.right, viewfinderWindowRect.bottom, NULL, NULL, hInst, NULL);
+    
+    SetLayeredWindowAttributes(hwndViewfinder, 0, 255, LWA_ALPHA);  
+    if (!hwndViewfinder)
+    {
+        return FALSE;
+    }
+
+    MagSetWindowFilterList(hwndMag, MW_FILTERMODE_EXCLUDE, 1, &hwndViewfinder);
+    
+    HDC appDC = GetDC(hwndViewfinder);
+    HDC DC = GetDC(NULL);
+    
+    HBITMAP bitmap = CreateCompatibleBitmap(DC, xRes, yRes);
+    HDC memoryDC = CreateCompatibleDC(DC);
+    SelectObject(memoryDC, bitmap);
+    BitBlt(appDC, 0, 0, xRes, yRes, DC, 0, 0, SRCCOPY);
+    
+    ReleaseDC (NULL, DC);
+    ReleaseDC (hwndViewfinder, appDC);
+
+    return TRUE;
 }
 
 //
@@ -297,6 +344,9 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 
     // Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
     SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, 
+        SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
+    // Make viewfinder topmost window. 
+    SetWindowPos(hwndViewfinder, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
         SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
 
     // Force redraw.
