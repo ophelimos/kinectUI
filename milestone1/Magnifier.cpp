@@ -129,10 +129,10 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     case WM_SIZE:
         if ( hwndMag != NULL )
         {
-            GetClientRect(hWnd, &magWindowRect);
+            //GetClientRect(hWnd, &magWindowRect);
             // Resize the control to fill the window.
-            SetWindowPos(hwndMag, NULL, 
-                magWindowRect.left, magWindowRect.top, magWindowRect.right, magWindowRect.bottom, 0);
+            //SetWindowPos(hwndMag, NULL, 
+                //magWindowRect.left, magWindowRect.top, magWindowRect.right, magWindowRect.bottom, 0);*/
         }
         break;
 
@@ -318,8 +318,8 @@ void ApplyLensRestrictions (RECT sourceRect){
 
     lensWindowRect.left = viewfinderWindowRect.left + (sourceRect.left/5);
     lensWindowRect.top = viewfinderWindowRect.top + (sourceRect.top/5);
-    lensWindowRect.right = (sourceRect.right - sourceRect.left);
-    lensWindowRect.bottom = (sourceRect.bottom - sourceRect.top);
+    lensWindowRect.right = (LONG) ((sourceRect.right-sourceRect.left)/5);
+    lensWindowRect.bottom = (LONG) ((sourceRect.bottom-sourceRect.top)/5);
 
     if (lensWindowRect.left + lensWindowRect.right > viewfinderWindowRect.left + viewfinderWindowRect.right){
         lensWindowRect.left = viewfinderWindowRect.left + viewfinderWindowRect.right - lensWindowRect.right;
@@ -337,7 +337,7 @@ void ApplyLensRestrictions (RECT sourceRect){
 // PURPOSE: Creates the Viewfinder window
 //
 BOOL SetupLens(HINSTANCE hInst)
-{   
+{       
     ApplyLensRestrictions (GetSourceRect());
     
     hwndLens = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
@@ -356,27 +356,16 @@ BOOL SetupLens(HINSTANCE hInst)
 
 BOOL UpdateLens()
 {
-    ApplyLensRestrictions (GetSourceRect());   
-
-    HDC hdcScreen = GetDC(NULL);
-    HDC hDC = CreateCompatibleDC(hdcScreen);
-    SIZE size;
-    size.cx = lensWindowRect.right;
-    size.cy = lensWindowRect.bottom;
-    POINT pt;
-    pt.x = lensWindowRect.left;
-    pt.y = lensWindowRect.top;
-    POINT ppt = {0,0};
+    RECT source;
+    MagGetWindowSource(hwndMag,&source);
+    ApplyLensRestrictions (source);
     
-    UpdateLayeredWindow(hwndLens, hdcScreen, &pt, &size, hDC, &ppt, 0, NULL, NULL);
-    
-    /*
     SetWindowPos(hwndLens, NULL, 
         lensWindowRect.left, 
         lensWindowRect.top, 
         lensWindowRect.right, 
         lensWindowRect.bottom, 
-        NULL);*/
+        SWP_NOACTIVATE|SWP_NOREDRAW);
         
     return TRUE;
 }
