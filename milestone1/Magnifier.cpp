@@ -87,17 +87,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 }
 
 
-
-//
-// FUNCTION: ViewWndProc()
-//
-// PURPOSE: Window procedure for the window that hosts the magnifier control.
-//
-LRESULT CALLBACK ViewWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{        
-    return DefWindowProc(hWnd, message, wParam, lParam);        
-}
-
 //
 // FUNCTION: HostWndProc()
 //
@@ -187,8 +176,28 @@ ATOM RegisterViewfinderWindowClass(HINSTANCE hInstance)
     wcex.lpfnWndProc    = HostWndProc;
     wcex.hInstance      = hInstance;
     wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
+    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_MENU);
     wcex.lpszClassName  = ViewfinderClassName;
+
+    return RegisterClassEx(&wcex);
+}
+
+//
+//  FUNCTION: RegisterLensWindowClass()
+//
+//  PURPOSE: Registers the window class for the window that contains the magnification control.
+//
+ATOM RegisterLensWindowClass(HINSTANCE hInstance)
+{
+    WNDCLASSEX wcex = {};
+
+    wcex.cbSize = sizeof(WNDCLASSEX); 
+    wcex.style          = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc    = HostWndProc;
+    wcex.hInstance      = hInstance;
+    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
+    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
+    wcex.lpszClassName  = LensClassName;
 
     return RegisterClassEx(&wcex);
 }
@@ -228,6 +237,7 @@ BOOL SetupMagnifier(HINSTANCE hInst)
     // Create the host and viewfinder windows.
     RegisterHostWindowClass(hInst);
     RegisterViewfinderWindowClass(hInst);
+    RegisterLensWindowClass(hInst);
 
     hwndHost = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
         WindowClassName, WindowTitle, 
@@ -250,9 +260,14 @@ BOOL SetupMagnifier(HINSTANCE hInst)
     {
         return FALSE;
     }
-
+       
+    UpdateMagnificationFactor();
     SetupViewfinder(hInst);
+    SetupLens(hInst);
 
+    HWND list[] = {hwndViewfinder, hwndLens};
+    MagSetWindowFilterList(hwndMag, MW_FILTERMODE_EXCLUDE, 2, list);
+    
     return UpdateMagnificationFactor();
 }
 
@@ -269,23 +284,22 @@ BOOL SetupViewfinder(HINSTANCE hInst)
     ReleaseDC(NULL, hDC);
 
     // Set bounds of viewfinder window according to screen size.
-    viewfinderWindowRect.top = yRes-(yRes/5);    
-    viewfinderWindowRect.bottom = viewfinderWindowRect.top + (yRes/5);
+    viewfinderWindowRect.top = yRes-(yRes/5);        
+    //viewfinderWindowRect.bottom = yRes;
+    viewfinderWindowRect.bottom = yRes/5;
     viewfinderWindowRect.left = 0;
     viewfinderWindowRect.right = xRes/5;    
     hwndViewfinder = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
         ViewfinderClassName, ViewWindowTitle, 
         WS_VISIBLE | WS_POPUP,
         viewfinderWindowRect.left, viewfinderWindowRect.top, viewfinderWindowRect.right, viewfinderWindowRect.bottom, NULL, NULL, hInst, NULL);
-    
-    SetLayeredWindowAttributes(hwndViewfinder, 0, 255, LWA_ALPHA);  
     if (!hwndViewfinder)
     {
         return FALSE;
     }
-
-    MagSetWindowFilterList(hwndMag, MW_FILTERMODE_EXCLUDE, 1, &hwndViewfinder);
-    
+    SetLayeredWindowAttributes(hwndViewfinder, 0, 160, LWA_ALPHA);  
+        
+    /*
     HDC appDC = GetDC(hwndViewfinder);
     HDC DC = GetDC(NULL);
     
@@ -296,27 +310,86 @@ BOOL SetupViewfinder(HINSTANCE hInst)
     
     ReleaseDC (NULL, DC);
     ReleaseDC (hwndViewfinder, appDC);
-
+    */
     return TRUE;
 }
 
+void ApplyLensRestrictions (RECT sourceRect){
+
+    lensWindowRect.left = viewfinderWindowRect.left + (sourceRect.left/5);
+    lensWindowRect.top = viewfinderWindowRect.top + (sourceRect.top/5);
+    lensWindowRect.right = (sourceRect.right - sourceRect.left);
+    lensWindowRect.bottom = (sourceRect.bottom - sourceRect.top);
+
+    if (lensWindowRect.left + lensWindowRect.right > viewfinderWindowRect.left + viewfinderWindowRect.right){
+        lensWindowRect.left = viewfinderWindowRect.left + viewfinderWindowRect.right - lensWindowRect.right;
+    }
+
+    if (lensWindowRect.top + lensWindowRect.bottom > viewfinderWindowRect.top + viewfinderWindowRect.bottom){
+        lensWindowRect.top = viewfinderWindowRect.top + viewfinderWindowRect.bottom - lensWindowRect.bottom;
+    }
+    return;
+}
+
 //
-// FUNCTION: UpdateMagWindow()
+// FUNCTION: SetupViewfinder
 //
-// PURPOSE: Sets the source rectangle and updates the window. Called by a timer.
+// PURPOSE: Creates the Viewfinder window
 //
-void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/)
+BOOL SetupLens(HINSTANCE hInst)
+{   
+    ApplyLensRestrictions (GetSourceRect());
+    
+    hwndLens = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
+        LensClassName, LensWindowTitle, 
+        WS_VISIBLE | WS_POPUP | WS_BORDER,
+        lensWindowRect.left, lensWindowRect.top, lensWindowRect.right, lensWindowRect.bottom, NULL, NULL, hInst, NULL);
+    
+    if (!hwndLens)
+    {
+        return FALSE;
+    }
+    SetLayeredWindowAttributes(hwndLens, 0, 180, LWA_ALPHA);  
+    
+    return TRUE;
+}
+
+BOOL UpdateLens()
 {
-	UpdateMagnificationFactor();
+    ApplyLensRestrictions (GetSourceRect());   
 
-    POINT mousePoint;
-    GetCursorPos(&mousePoint);
+    HDC hdcScreen = GetDC(NULL);
+    HDC hDC = CreateCompatibleDC(hdcScreen);
+    SIZE size;
+    size.cx = lensWindowRect.right;
+    size.cy = lensWindowRect.bottom;
+    POINT pt;
+    pt.x = lensWindowRect.left;
+    pt.y = lensWindowRect.top;
+    POINT ppt = {0,0};
+    
+    UpdateLayeredWindow(hwndLens, hdcScreen, &pt, &size, hDC, &ppt, 0, NULL, NULL);
+    
+    /*
+    SetWindowPos(hwndLens, NULL, 
+        lensWindowRect.left, 
+        lensWindowRect.top, 
+        lensWindowRect.right, 
+        lensWindowRect.bottom, 
+        NULL);*/
+        
+    return TRUE;
+}
 
+RECT GetSourceRect (){
+    
     int width = (int)((magWindowRect.right - magWindowRect.left) / MagFactor);
     int height = (int)((magWindowRect.bottom - magWindowRect.top) / MagFactor);
+    POINT mousePoint;
+    GetCursorPos(&mousePoint);
     RECT sourceRect;
     sourceRect.left = mousePoint.x - width / 2;
-    sourceRect.top = mousePoint.y -  height / 2;
+    sourceRect.top = mousePoint.y - height / 2;
 
     // Don't scroll outside desktop area.
     if (sourceRect.left < 0)
@@ -336,17 +409,33 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
     if (sourceRect.top > GetSystemMetrics(SM_CYSCREEN) - height)
     {
         sourceRect.top = GetSystemMetrics(SM_CYSCREEN) - height;
-    }
+    }        
     sourceRect.bottom = sourceRect.top + height;
 
+    return sourceRect;
+}
+
+//
+// FUNCTION: UpdateMagWindow()
+//
+// PURPOSE: Sets the source rectangle and updates the window. Called by a timer.
+//
+void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/)
+{       
+	UpdateMagnificationFactor();
+    RECT sourceRect = GetSourceRect();
     // Set the source rectangle for the magnifier control.
     MagSetWindowSource(hwndMag, sourceRect);
-
+    
+    UpdateLens();
     // Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
     SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, 
         SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
     // Make viewfinder topmost window. 
     SetWindowPos(hwndViewfinder, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
+        SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
+    // Make lens topmost window. 
+    SetWindowPos(hwndLens, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
         SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
 
     // Force redraw.
@@ -377,7 +466,7 @@ void GoFullScreen()
 
     // Calculate the size of system elements.
     int xBorder = GetSystemMetrics(SM_CXFRAME);
-   // int yCaption = GetSystemMetrics(SM_CYCAPTION);
+    // int yCaption = GetSystemMetrics(SM_CYCAPTION);
     int yBorder = GetSystemMetrics(SM_CYFRAME);
 
     // Calculate the window origin and span for full-screen mode.
