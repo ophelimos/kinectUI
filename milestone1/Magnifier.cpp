@@ -48,7 +48,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
                      LPSTR     /*lpCmdLine*/,
                      int       nCmdShow)
 {
-	// Start up a separate thread that handles the Kinect stuff
+/*	// Start up a separate thread that handles the Kinect stuff
 	// StartSkeletalViewer(hInstance);
 	CreateThread( 
             NULL,                   // default security attributes
@@ -56,7 +56,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
             StartSkeletalViewer,       // thread function name
             hInstance,          // argument to thread function 
             0,                      // use default creation flags 
-            NULL);   // returns the thread identifier 
+            NULL);   // returns the thread identifier */
     if (FALSE == MagInitialize())
     {
         return 0;
@@ -129,10 +129,10 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     case WM_SIZE:
         if ( hwndMag != NULL )
         {
-            //GetClientRect(hWnd, &magWindowRect);
+            GetClientRect(hwndHost, &magWindowRect);
             // Resize the control to fill the window.
-            //SetWindowPos(hwndMag, NULL, 
-                //magWindowRect.left, magWindowRect.top, magWindowRect.right, magWindowRect.bottom, 0);*/
+            SetWindowPos(hwndMag, NULL, 
+                magWindowRect.left, magWindowRect.top, magWindowRect.right, magWindowRect.bottom, 0);
         }
         break;
 
@@ -254,7 +254,7 @@ BOOL SetupMagnifier(HINSTANCE hInst)
     // Create a magnifier control that fills the client area.
     GetClientRect(hwndHost, &magWindowRect);
     hwndMag = CreateWindow(WC_MAGNIFIER, TEXT("MagnifierWindow"), 
-        WS_CHILD | MS_SHOWMAGNIFIEDCURSOR | WS_VISIBLE ,
+        WS_CHILD | WS_VISIBLE | MS_SHOWMAGNIFIEDCURSOR,
         magWindowRect.left, magWindowRect.top, magWindowRect.right, magWindowRect.bottom, hwndHost, NULL, hInst, NULL );
     if (!hwndMag)
     {
@@ -264,6 +264,7 @@ BOOL SetupMagnifier(HINSTANCE hInst)
     UpdateMagnificationFactor();
     SetupViewfinder(hInst);
     SetupLens(hInst);
+    GoFullScreen();
 
     HWND list[] = {hwndViewfinder, hwndLens};
     MagSetWindowFilterList(hwndMag, MW_FILTERMODE_EXCLUDE, 2, list);
@@ -297,20 +298,8 @@ BOOL SetupViewfinder(HINSTANCE hInst)
     {
         return FALSE;
     }
-    SetLayeredWindowAttributes(hwndViewfinder, 0, 160, LWA_ALPHA);  
-        
-    /*
-    HDC appDC = GetDC(hwndViewfinder);
-    HDC DC = GetDC(NULL);
-    
-    HBITMAP bitmap = CreateCompatibleBitmap(DC, xRes, yRes);
-    HDC memoryDC = CreateCompatibleDC(DC);
-    SelectObject(memoryDC, bitmap);
-    BitBlt(appDC, 0, 0, xRes, yRes, DC, 0, 0, SRCCOPY);
-    
-    ReleaseDC (NULL, DC);
-    ReleaseDC (hwndViewfinder, appDC);
-    */
+    SetLayeredWindowAttributes(hwndViewfinder, 0, 160, LWA_ALPHA);      
+
     return TRUE;
 }
 
@@ -366,7 +355,7 @@ BOOL UpdateLens()
         lensWindowRect.right, 
         lensWindowRect.bottom, 
         SWP_NOACTIVATE|SWP_NOREDRAW);
-        
+    
     return TRUE;
 }
 
@@ -415,7 +404,7 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
     RECT sourceRect = GetSourceRect();
     // Set the source rectangle for the magnifier control.
     MagSetWindowSource(hwndMag, sourceRect);
-    
+        
     UpdateLens();
     // Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
     SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, 
@@ -467,6 +456,8 @@ void GoFullScreen()
 
     SetWindowPos(hwndHost, HWND_TOP, xOrigin, yOrigin, xSpan, ySpan, 
         SWP_SHOWWINDOW | SWP_NOZORDER | SWP_NOACTIVATE);
+    
+    GetClientRect(hwndHost, &magWindowRect);
 }
 
 int CaptureAnImage(HWND hWnd)
@@ -593,7 +584,7 @@ int CaptureAnImage(HWND hWnd)
 float GetMagnificationFactor(){
     if (distanceInMM < 1000)
 	{
-		return 1.0f;
+		return 2.0f;
 	}
 	else
 	{
