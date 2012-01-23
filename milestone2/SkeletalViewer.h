@@ -15,6 +15,7 @@
 #include "resource.h"
 #include "MSR_NuiApi.h"
 #include "DrawDevice.h"
+#include "GestureDetector.h"
 
 #define SZ_APPDLG_WINDOW_CLASS          _T("SkeletalViewerAppDlgWndClass")
 #define WM_USER_UPDATE_FPS              WM_USER
@@ -43,6 +44,7 @@ public:
     void                    Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor );
     void                    Nui_DrawSkeletonSegment( NUI_SKELETON_DATA * pSkel, int numJoints, ... );
 	int						DisplayWindow(HINSTANCE hInstance, int nCmdShow);
+	BOOL					DrawBox(Vector4& s_point, int scaleX, int scaleY);
 
     RGBQUAD                 Nui_ShortToQuad_Depth( USHORT s );
 
@@ -77,6 +79,7 @@ private:
     HANDLE        m_pDepthStreamHandle;
     HANDLE        m_pVideoStreamHandle;
     HFONT         m_hFontFPS;
+	HFONT		  m_smallFontFPS;
     HPEN          m_Pen[6];
     HDC           m_SkeletonDC;
     HBITMAP       m_SkeletonBMP;

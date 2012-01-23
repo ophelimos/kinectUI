@@ -22,13 +22,15 @@
 #include <strsafe.h>
 #include "SkeletalViewer.h"
 #include "resource.h"
-#include "GestureDetector.h"
 
 // Global Variables:
 CSkeletalViewerApp	g_CSkeletalViewerApp;	// Application class
 HINSTANCE			g_hInst;				// current instance
 HWND				g_hWndApp;				// Windows Handle to main application
 TCHAR				g_szAppTitle[256];		// Application title
+int					activeSkeleton = -1;			// The skeleton we care about for gestures
+// Global, since I'm getting really weird behavior as a class variable
+GestureDetector* gestureDetector;
 
 int distanceInMM;
 
@@ -49,6 +51,7 @@ CSkeletalViewerApp::CSkeletalViewerApp()
     m_fUpdatingUi = false;
     Nui_Zero();
     distanceInMM = 0;
+	gestureDetector = NULL;
 }
 
 CSkeletalViewerApp::~CSkeletalViewerApp()
@@ -90,7 +93,7 @@ int CSkeletalViewerApp::DisplayWindow(HINSTANCE hInstance, int nCmdShow)
     UpdateWindow(g_hWndApp);
 
 	// Start up gesture detector
-	GestureDetector* gestureDetector = new GestureDetector(g_hWndApp);
+	gestureDetector = new GestureDetector(g_hWndApp);
 
     // Main message loop:
     while(GetMessage(&msg,NULL,0,0)) 
@@ -188,7 +191,13 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 	    // Use the same font for everything else as well
 	    SendDlgItemMessage(hWnd,IDC_DISTANCE,WM_SETFONT,(WPARAM) m_hFontFPS,0);
 	    SendDlgItemMessage(hWnd,IDC_USER,WM_SETFONT,(WPARAM) m_hFontFPS,0);
-	    SendDlgItemMessage(hWnd,IDC_STATE,WM_SETFONT,(WPARAM) m_hFontFPS,0);
+
+		// Want a smaller font for the state, since the words are longer
+		LOGFONT smallfont;
+		GetObject((HFONT) GetStockObject(DEFAULT_GUI_FONT),sizeof(smallfont),&smallfont);
+		smallfont.lfHeight*=2;
+		m_smallFontFPS = CreateFontIndirect(&smallfont);
+	    SendDlgItemMessage(hWnd,IDC_STATE,WM_SETFONT,(WPARAM) m_smallFontFPS,0);
 
             UpdateComboBox();
             SendDlgItemMessage (m_hWnd, IDC_CAMERAS, CB_SETCURSEL, 0, 0);
@@ -265,6 +274,7 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 
             // Other cleanup
             DeleteObject(m_hFontFPS);
+			DeleteObject(m_smallFontFPS);
 
             // Quit the main message pump
             PostQuitMessage(0);

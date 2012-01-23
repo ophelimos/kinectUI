@@ -27,15 +27,6 @@ RECT                lensWindowRect;
 RECT                viewfinderWindowRect;
 RECT                hostWindowRect;
 
-enum ProgramMode
-{
-	MAGNIFIER_ONLY,
-	KINECT_ONLY,
-	KINECT_AND_MAGNIFIER
-};
-
-const ProgramMode mode = KINECT_AND_MAGNIFIER;
-
 // Forward declarations.
 ATOM                RegisterHostWindowClass(HINSTANCE hInstance);
 ATOM                RegisterViewfinderWindowClass(HINSTANCE hInstance);

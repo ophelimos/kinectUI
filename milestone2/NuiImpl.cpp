@@ -18,6 +18,8 @@
 #include <assert.h>
 
 extern int distanceInMM;
+extern int activeSkeleton;
+extern GestureDetector* gestureDetector;
 
 static const COLORREF g_JointColorTable[NUI_SKELETON_POSITION_COUNT] = 
 {
@@ -629,11 +631,87 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
         }
     }
 
+	// Draw the gesture hitbox
+	if (gestureDetector != NULL)
+	{
+		HPEN hGesturePen;
+		// Hard-code to red for now
+		hGesturePen = CreatePen(PS_DASH, 3, RGB(255,0,0));
+		hOldObj = SelectObject(m_SkeletonDC, hGesturePen);
+
+		// Where we draw the box is going to depend on what gesture state we're in
+		Vector4 thePoint;
+		switch (gestureDetector->state->state)
+		{
+		case OFF:
+			// Draw a detectRange box around the head
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD], scaleX, scaleY);
+			break;
+		case SALUTE1:
+			// Up and away from the head, both hands
+			thePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+			thePoint.y += saluteUp;
+			if (gestureDetector->hand == RIGHT)
+			{
+				thePoint.x += saluteOver;
+			}
+			else
+			{
+				thePoint.x -= saluteOver;
+			}
+			DrawBox(thePoint, scaleX, scaleY);
+			break;
+		case SALUTE2:
+			return;
+		}
+
+		// Cleanup
+		SelectObject( m_SkeletonDC, hOldObj );
+		DeleteObject(hGesturePen);
+	}
+
     return;
 
 }
 
+// Draw a box around a skeletal position
+BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, int scaleX, int scaleY)
+{
+	// s_ denotes skeleton-space point
+	// Translate it to an image-space point
+	Vector4 s_ul = s_point;
+	Vector4 s_ur = s_point;
+	Vector4 s_ll = s_point;
+	Vector4 s_lr = s_point;
 
+	FLOAT radius = detectRange/2;
+
+	s_ul.x -= radius;
+	s_ul.y += radius;
+	s_ur.x += radius;
+	s_ur.y += radius;
+	s_ll.x -= radius;
+	s_ll.y -= radius;
+	s_lr.x += radius;
+	s_lr.y -= radius;
+
+	// Yes, 5 points in a rectangle since we want to join the start and end
+	const unsigned int NUM_POINTS = 5;
+	Vector4* s_points[NUM_POINTS] = {&s_ul, &s_ur, &s_lr, &s_ll, &s_ul};
+	POINT i_points[NUM_POINTS];
+
+	// Convert skeleton-space points to image-space points (i_points)
+	float fx=0,fy=0;
+	for (int i = 0; i < NUM_POINTS; i++)
+	{
+		NuiTransformSkeletonToDepthImageF( *(s_points[i]), &fx, &fy );
+		i_points[i].x = (int) ( fx * scaleX + 0.5f );
+		i_points[i].y = (int) ( fy * scaleY + 0.5f );
+	}
+
+	// Actually draw the rectangle from lines
+	return Polyline(m_SkeletonDC, i_points, NUM_POINTS);
+}
 
 
 void CSkeletalViewerApp::Nui_DoDoubleBuffer(HWND hWnd,HDC hDC)
@@ -661,9 +739,19 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
     {
         for( int i = 0 ; i < NUI_SKELETON_COUNT ; i++ )
         {
+			// If we're no longer tracking the active skeleton, we don't have an active skeleton
+			if ((i == activeSkeleton) && (SkeletonFrame.SkeletonData[i].eTrackingState != NUI_SKELETON_TRACKED))
+			{
+				activeSkeleton = -1;
+			}
             if( SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_TRACKED )
             {
                 bFoundSkeleton = true;
+				// If we don't have an active skeleton, whatever's tracked becomes the active one
+				if (activeSkeleton == -1)
+				{
+					activeSkeleton = i;
+				}
             }
         }
     }
@@ -687,18 +775,14 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
     bool bBlank = true;
     for( int i = 0 ; i < NUI_SKELETON_COUNT ; i++ )
     {
-		// Only distance-track the first skeleton
-		bool first = true;
-
         // Show skeleton only if it is tracked, and the center-shoulder joint is at least inferred.
         if( SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_TRACKED &&
             SkeletonFrame.SkeletonData[i].eSkeletonPositionTrackingState[NUI_SKELETON_POSITION_SHOULDER_CENTER] != NUI_SKELETON_POSITION_NOT_TRACKED)
         {
             Nui_DrawSkeleton( bBlank, &SkeletonFrame.SkeletonData[i], GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), i );
 
-			if (first)
+			if (i == activeSkeleton)
 			{
-				first = false;
 				// Update distance data
 				Vector4 headPoint = SkeletonFrame.SkeletonData[i].SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
 				float xcoord, ycoord;
@@ -711,6 +795,9 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 				// Update user data
 				::PostMessageW(m_hWnd, WM_USER_UPDATE_USER, IDC_USER, i);
 			}
+
+			// Check for gestures
+			gestureDetector->detect(SkeletonFrame, i);
 
             bBlank = false;
         }

@@ -38,6 +38,16 @@
 *************************************************************************************************/
 #include "Magnifier.h"
 
+// Make it easier to pick what part of the program you want to run.
+enum ProgramMode
+{
+	MAGNIFIER_ONLY,
+	KINECT_ONLY,
+	KINECT_AND_MAGNIFIER
+};
+
+const ProgramMode mode = KINECT_ONLY;
+
 //
 // FUNCTION: WinMain()
 //

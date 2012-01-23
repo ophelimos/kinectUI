@@ -13,9 +13,10 @@
 #include "GestureState.h"
 
 /* Magic constants */
-const double detectRange = 0.01;
-const long long timeout = 10000;
-const double saluteForward = -0.5;
+const FLOAT detectRange = 0.2f;
+// 10000000 is about one second
+const long long timeout = 20000000;
+const double saluteOver = 0.3;
 const double saluteUp = 0.2;
 
 enum Hand {
@@ -42,8 +43,8 @@ public:
 	HWND hwnd;
 
 	/* Functions */
-	void detect(NUI_SKELETON_DATA SkeletonFrame);
-	bool areClose(Vector4 obj1, Vector4 obj2, double range);
-	long long getTime();
+	void detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum);
+	bool areClose(Vector4 &obj1, Vector4 &obj2, double range);
+	long long getTimeIn100NSIntervals();
 };
 
