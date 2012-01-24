@@ -48,7 +48,7 @@ enum ProgramMode
 	KINECT_AND_MAGNIFIER
 };
 
-const ProgramMode mode = KINECT_ONLY;
+const ProgramMode mode = KINECT_AND_MAGNIFIER;
 
 //
 // FUNCTION: WinMain()

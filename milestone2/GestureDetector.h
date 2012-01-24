@@ -18,8 +18,8 @@ const FLOAT detectRange = 0.2f;
 const long long timeout = 50000000;
 const FLOAT saluteOver = 0.3f;
 const FLOAT saluteUp = 0.2f;
-const FLOAT bodyOver = 0.2f;
-const LONG moveAmount = 10;
+const FLOAT bodyOver = 0.5f;
+const LONG moveAmount = 50;
 const float magnifyAmount = 0.1f;
 
 enum Direction {

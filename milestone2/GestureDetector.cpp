@@ -506,14 +506,23 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum)
 // Check if two Vector4 objects are within a certain rectangular range of each other
 bool GestureDetector::areClose(Vector4 &obj1, Vector4 &obj2, double range)
 {
+	//if ( 
+	//	(abs(obj1.x - obj2.x) < range)
+	//	&& (abs(obj1.y - obj2.y) < range)
+	//	&& (abs(obj1.z - obj2.z) < range)
+	//	)
+	//{
+	//	return true;
+	//}
+
 	if ( 
 		(abs(obj1.x - obj2.x) < range)
 		&& (abs(obj1.y - obj2.y) < range)
-		&& (abs(obj1.z - obj2.z) < range)
 		)
 	{
 		return true;
 	}
+
 	return false;
 }
 

@@ -632,7 +632,7 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
     }
 
 	// Draw the gesture hitbox
-	if (gestureDetector != NULL)
+	if ((gestureDetector != NULL) && (WhichSkeletonColor == activeSkeleton))
 	{
 		HPEN hGesturePen;
 		// Hard-code to red for now

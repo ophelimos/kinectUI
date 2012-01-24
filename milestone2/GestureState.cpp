@@ -52,6 +52,9 @@ void GestureState::updateDebug()
 	case SALUTE2:
 		statename = _strdup("SALUTE2");
 		break;
+	case BODYCENTER:
+		statename = _strdup("BODYCENTER");
+		break;
 	case MOVEUP:
 		statename = _strdup("MOVEUP");
 		break;
