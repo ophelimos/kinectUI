@@ -640,7 +640,8 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 		hOldObj = SelectObject(m_SkeletonDC, hGesturePen);
 
 		// Where we draw the box is going to depend on what gesture state we're in
-		Vector4 thePoint;
+		Vector4 headPoint, spinePoint;
+		Vector4 upPoint, downPoint, leftPoint, rightPoint;
 		switch (gestureDetector->state->state)
 		{
 		case OFF:
@@ -649,20 +650,107 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 			break;
 		case SALUTE1:
 			// Up and away from the head, both hands
-			thePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
-			thePoint.y += saluteUp;
+			headPoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+			headPoint.y += saluteUp;
 			if (gestureDetector->hand == RIGHT)
 			{
-				thePoint.x += saluteOver;
+				headPoint.x += saluteOver;
 			}
 			else
 			{
-				thePoint.x -= saluteOver;
+				headPoint.x -= saluteOver;
 			}
-			DrawBox(thePoint, scaleX, scaleY);
+			DrawBox(headPoint, scaleX, scaleY);
 			break;
 		case SALUTE2:
-			return;
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+			break;
+		case BODYCENTER:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			rightPoint = spinePoint;
+			rightPoint.x += bodyOver;
+			leftPoint = spinePoint;
+			leftPoint.x -= bodyOver;
+			upPoint = spinePoint;
+			upPoint.y += bodyOver;
+			downPoint = spinePoint;
+			downPoint.y -= bodyOver;
+			DrawBox(rightPoint, scaleX, scaleY);
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+		case MOVELEFT:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			upPoint = spinePoint;
+			upPoint.y += bodyOver;
+			downPoint = spinePoint;
+			downPoint.y -= bodyOver;
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+		case MOVERIGHT:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			upPoint = spinePoint;
+			upPoint.y += bodyOver;
+			downPoint = spinePoint;
+			downPoint.y -= bodyOver;
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+		case MOVEUP:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			rightPoint = spinePoint;
+			rightPoint.x += bodyOver;
+			leftPoint = spinePoint;
+			leftPoint.x -= bodyOver;
+			DrawBox(rightPoint, scaleX, scaleY);
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+		case MOVEDOWN:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			rightPoint = spinePoint;
+			rightPoint.x += bodyOver;
+			leftPoint = spinePoint;
+			leftPoint.x -= bodyOver;
+			DrawBox(rightPoint, scaleX, scaleY);
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+		case MAGNIFYLEFT:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			upPoint = spinePoint;
+			upPoint.y += bodyOver;
+			downPoint = spinePoint;
+			downPoint.y -= bodyOver;
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+		case MAGNIFYRIGHT:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			upPoint = spinePoint;
+			upPoint.y += bodyOver;
+			downPoint = spinePoint;
+			downPoint.y -= bodyOver;
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+		case MAGNIFYUP:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			rightPoint = spinePoint;
+			rightPoint.x += bodyOver;
+			leftPoint = spinePoint;
+			leftPoint.x -= bodyOver;
+			DrawBox(rightPoint, scaleX, scaleY);
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+		case MAGNIFYDOWN:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			rightPoint = spinePoint;
+			rightPoint.x += bodyOver;
+			leftPoint = spinePoint;
+			leftPoint.x -= bodyOver;
+			DrawBox(rightPoint, scaleX, scaleY);
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
 		}
 
 		// Cleanup

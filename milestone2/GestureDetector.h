@@ -15,13 +15,18 @@
 /* Magic constants */
 const FLOAT detectRange = 0.2f;
 // 10000000 is about one second
-const long long timeout = 20000000;
-const double saluteOver = 0.3;
-const double saluteUp = 0.2;
+const long long timeout = 50000000;
+const FLOAT saluteOver = 0.3f;
+const FLOAT saluteUp = 0.2f;
+const FLOAT bodyOver = 0.2f;
+const LONG moveAmount = 10;
+const float magnifyAmount = 0.1f;
 
-enum Hand {
+enum Direction {
 	RIGHT,
-	LEFT
+	LEFT,
+	UP,
+	DOWN,
 };
 
 class GestureDetector
@@ -36,7 +41,7 @@ public:
 	// Gesture detection times out
 	long long startTime;
 	// Detection is single-handed, but the hand can change
-	Hand hand;
+	Direction hand;
 	/* State */
 	GestureState* state;
 	/* Necessary for debugging */
@@ -46,5 +51,6 @@ public:
 	void detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum);
 	bool areClose(Vector4 &obj1, Vector4 &obj2, double range);
 	long long getTimeIn100NSIntervals();
+	void GestureDetector::moveCursor(Direction dir);
 };
 

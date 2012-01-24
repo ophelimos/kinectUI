@@ -52,11 +52,29 @@ void GestureState::updateDebug()
 	case SALUTE2:
 		statename = _strdup("SALUTE2");
 		break;
-	case MOVELENS:
-		statename = _strdup("MOVELENS");
+	case MOVEUP:
+		statename = _strdup("MOVEUP");
 		break;
-	case MAGNIFY:
-		statename = _strdup("MAGNIFY");
+	case MOVEDOWN:
+		statename = _strdup("MOVEDOWN");
+		break;
+	case MOVELEFT:
+		statename = _strdup("MOVELEFT");
+		break;
+	case MOVERIGHT:
+		statename = _strdup("MOVERIGHT");
+		break;
+	case MAGNIFYUP:
+		statename = _strdup("MAGNIFYUP");
+		break;
+	case MAGNIFYDOWN:
+		statename = _strdup("MAGNIFYDOWN");
+		break;
+	case MAGNIFYRIGHT:
+		statename = _strdup("MAGNIFYRIGHT");
+		break;
+	case MAGNIFYLEFT:
+		statename = _strdup("MAGNIFYLEFT");
 		break;
 	default:
 		statename = _strdup("UNKNOWN");

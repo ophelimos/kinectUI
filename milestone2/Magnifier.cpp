@@ -38,6 +38,8 @@
 *************************************************************************************************/
 #include "Magnifier.h"
 
+float magnificationFloor;
+
 // Make it easier to pick what part of the program you want to run.
 enum ProgramMode
 {
@@ -253,6 +255,9 @@ BOOL SetupMagnifier(HINSTANCE hInst)
 	hostWindowRect.bottom = GetSystemMetrics(SM_CYSCREEN);
 	hostWindowRect.left = 0;
 	hostWindowRect.right = GetSystemMetrics(SM_CXSCREEN);
+
+	// Set the floor to 0
+	magnificationFloor = 0;
 
 	// Create the host and viewfinder windows.
 	RegisterHostWindowClass(hInst);
@@ -608,7 +613,7 @@ float GetMagnificationFactor(){
 	}
 	else
 	{
-		float convertedDistance = distanceInMM / 1000.0f;
+		float convertedDistance = (distanceInMM / 1000.0f) + magnificationFloor;
 		return convertedDistance;
 	}
 }
