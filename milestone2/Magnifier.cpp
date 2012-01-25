@@ -198,7 +198,8 @@ ATOM RegisterViewfinderWindowClass(HINSTANCE hInstance)
 	wcex.lpfnWndProc    = HostWndProc;
 	wcex.hInstance      = hInstance;
 	wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground  = (HBRUSH)(1 + COLOR_MENU);
+	//wcex.hbrBackground  = (HBRUSH)(1 + COLOR_MENU);
+    wcex.hbrBackground  = CreateSolidBrush(RGB(100, 180, 65));
 	wcex.lpszClassName  = ViewfinderClassName;
 
 	return RegisterClassEx(&wcex);
@@ -323,7 +324,7 @@ BOOL SetupViewfinder(HINSTANCE hInst)
 	{
 		return FALSE;
 	}
-	SetLayeredWindowAttributes(hwndViewfinder, 0, 160, LWA_ALPHA);      
+	SetLayeredWindowAttributes(hwndViewfinder, 0, 150, LWA_ALPHA);      
 
 	return TRUE;
 }
@@ -356,7 +357,7 @@ BOOL SetupLens(HINSTANCE hInst)
 
 	hwndLens = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
 		LensClassName, LensWindowTitle, 
-		WS_VISIBLE | WS_POPUP | WS_BORDER,
+		WS_VISIBLE | WS_POPUP | WS_BORDER | WS_THICKFRAME,
 		lensWindowRect.left, lensWindowRect.top, lensWindowRect.right, lensWindowRect.bottom, NULL, NULL, hInst, NULL);
 
 	if (!hwndLens)
@@ -609,7 +610,7 @@ int CaptureAnImage(HWND hWnd)
 float GetMagnificationFactor(){
 	if (distanceInMM < 1000)
 	{
-		return 2.0f;
+		return 1.0f;
 	}
 	else
 	{
