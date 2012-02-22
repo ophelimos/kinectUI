@@ -16,6 +16,7 @@
 #include "MSR_NuiApi.h"
 #include "DrawDevice.h"
 #include "GestureDetector.h"
+#include "MoveAndMagnifyHandler.h"
 
 #define SZ_APPDLG_WINDOW_CLASS          _T("SkeletalViewerAppDlgWndClass")
 #define WM_USER_UPDATE_FPS              WM_USER
@@ -23,6 +24,9 @@
 #define WM_USER_UPDATE_DISTANCE         WM_USER+2
 #define WM_USER_UPDATE_USER             WM_USER+3
 #define WM_USER_UPDATE_STATE            WM_USER+4
+#define WM_USER_UPDATE_MAGNIFICATION    WM_USER+5
+#define WM_USER_UPDATE_MOVEX            WM_USER+6
+#define WM_USER_UPDATE_MOVEY            WM_USER+7
 
 DWORD WINAPI StartSkeletalViewer(LPVOID lpParam);
 

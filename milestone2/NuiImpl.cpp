@@ -17,9 +17,10 @@
 #include <mmsystem.h>
 #include <assert.h>
 
+// Globals
 extern int distanceInMM;
 extern int activeSkeleton;
-extern GestureDetector* gestureDetector;
+extern GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
 
 static const COLORREF g_JointColorTable[NUI_SKELETON_POSITION_COUNT] = 
 {
@@ -632,16 +633,19 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
     }
 
 	// Draw the gesture hitbox
-	if ((gestureDetector != NULL) && (WhichSkeletonColor == activeSkeleton))
+	if ((gestureDetectors[WhichSkeletonColor] != NULL) && (WhichSkeletonColor == activeSkeleton))
 	{
+		GestureDetector* gestureDetector = gestureDetectors[WhichSkeletonColor];
 		HPEN hGesturePen;
 		// Hard-code to red for now
 		hGesturePen = CreatePen(PS_DASH, 3, RGB(255,0,0));
 		hOldObj = SelectObject(m_SkeletonDC, hGesturePen);
 
 		// Where we draw the box is going to depend on what gesture state we're in
-		Vector4 headPoint, spinePoint;
-		Vector4 upPoint, downPoint, leftPoint, rightPoint;
+		Vector4 headPoint;
+		Vector4 spinePoint;
+		Vector4 magnifyPoint;
+		Vector4 movePoint;
 		switch (gestureDetector->state->state)
 		{
 		case OFF:
@@ -667,90 +671,43 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 			break;
 		case BODYCENTER:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
-			DrawBox(rightPoint, scaleX, scaleY);
-			DrawBox(leftPoint, scaleX, scaleY);
-			DrawBox(upPoint, scaleX, scaleY);
-			DrawBox(downPoint, scaleX, scaleY);
-		case MOVELEFT:
+			headPoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+			magnifyPoint = spinePoint;
+			if (gestureDetector->hand == RIGHT)
+			{
+				magnifyPoint.x += magnifyOver;
+			} 
+			else 
+			{
+				magnifyPoint.x -= magnifyOver;
+			}
+			movePoint = headPoint;
+			movePoint.y -= moveDown;
+			DrawBox(movePoint, scaleX, scaleY);
+			DrawBox(magnifyPoint, scaleX, scaleY);
+			break;
+		case MOVE:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
-			DrawBox(upPoint, scaleX, scaleY);
-			DrawBox(downPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
-		case MOVERIGHT:
+			headPoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+			movePoint = headPoint;
+			movePoint.y -= moveDown;
+			DrawBox(spinePoint, scaleX, scaleY);
+			DrawBox(movePoint, scaleX, scaleY);
+			break;
+		case MAGNIFY:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
-			DrawBox(upPoint, scaleX, scaleY);
-			DrawBox(downPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
-		case MOVEUP:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			DrawBox(rightPoint, scaleX, scaleY);
-			DrawBox(leftPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
-		case MOVEDOWN:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			DrawBox(rightPoint, scaleX, scaleY);
-			DrawBox(leftPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
-		case MAGNIFYLEFT:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
-			DrawBox(upPoint, scaleX, scaleY);
-			DrawBox(downPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
-		case MAGNIFYRIGHT:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
-			DrawBox(upPoint, scaleX, scaleY);
-			DrawBox(downPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
-		case MAGNIFYUP:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			DrawBox(rightPoint, scaleX, scaleY);
-			DrawBox(leftPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
-		case MAGNIFYDOWN:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			DrawBox(rightPoint, scaleX, scaleY);
-			DrawBox(leftPoint, scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+			magnifyPoint = spinePoint;
+			if (gestureDetector->hand == RIGHT)
+			{
+				magnifyPoint.x += magnifyOver;
+			} 
+			else 
+			{
+				magnifyPoint.x -= magnifyOver;
+			}
+			DrawBox(magnifyPoint, scaleX, scaleY);
+			DrawBox(spinePoint, scaleX, scaleY);
+			break;
 		}
 
 		// Cleanup
@@ -858,6 +815,9 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
     m_bScreenBlanked = false;
     m_LastSkeletonFoundTime = -1;
 
+    // Save the velocities via comparison with the previous skeleton frame
+    static NUI_SKELETON_FRAME prevFrame = SkeletonFrame;
+
     // draw each skeleton color according to the slot within they are found.
     //
     bool bBlank = true;
@@ -883,15 +843,16 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 				// Update user data
 				::PostMessageW(m_hWnd, WM_USER_UPDATE_USER, IDC_USER, i);
 			}
-
-			// Check for gestures
-			gestureDetector->detect(SkeletonFrame, i);
+			// Remember, gesture detectors are now per-skeleton, but we still only want to detect gestures for tracked skeletons
+			gestureDetectors[i]->detect(SkeletonFrame, prevFrame, i);
 
             bBlank = false;
         }
     }
 
     Nui_DoDoubleBuffer(GetDlgItem(m_hWnd,IDC_SKELETALVIEW), m_SkeletonDC);
+
+    prevFrame = SkeletonFrame;
 }
 
 

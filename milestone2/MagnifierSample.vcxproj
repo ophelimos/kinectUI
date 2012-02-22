@@ -152,6 +152,7 @@
     <ClCompile Include="GestureDetector.cpp" />
     <ClCompile Include="GestureState.cpp" />
     <ClCompile Include="Magnifier.cpp" />
+    <ClCompile Include="MoveAndMagnifyHandler.cpp" />
     <ClCompile Include="NuiImpl.cpp" />
     <ClCompile Include="SkeletalViewer.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -161,6 +162,7 @@
     <ClInclude Include="GestureDetector.h" />
     <ClInclude Include="GestureState.h" />
     <ClInclude Include="Magnifier.h" />
+    <ClInclude Include="MoveAndMagnifyHandler.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SkeletalViewer.h" />
     <ClInclude Include="stdafx.h" />

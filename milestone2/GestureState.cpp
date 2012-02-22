@@ -3,12 +3,15 @@
 #include "resource.h"
 #include <string.h>
 
-GestureState::GestureState(HWND assocHwnd)
+extern int activeSkeleton;
+
+GestureState::GestureState(HWND assocHwnd, int userId)
 {
 	state = OFF;
 	hwnd = assocHwnd;
 	name = NULL;
 	updateDebug();
+	id = userId;
 }
 
 GestureState::~GestureState(void)
@@ -55,44 +58,55 @@ void GestureState::updateDebug()
 	case BODYCENTER:
 		statename = _strdup("BODYCENTER");
 		break;
-	case MOVEUP:
-		statename = _strdup("MOVEUP");
+	case MAGNIFY:
+		statename = _strdup("MAGNIFY");
 		break;
-	case MOVEDOWN:
-		statename = _strdup("MOVEDOWN");
+	case MOVE:
+		statename = _strdup("MOVE");
 		break;
-	case MOVELEFT:
-		statename = _strdup("MOVELEFT");
-		break;
-	case MOVERIGHT:
-		statename = _strdup("MOVERIGHT");
-		break;
-	case MAGNIFYUP:
-		statename = _strdup("MAGNIFYUP");
-		break;
-	case MAGNIFYDOWN:
-		statename = _strdup("MAGNIFYDOWN");
-		break;
-	case MAGNIFYRIGHT:
-		statename = _strdup("MAGNIFYRIGHT");
-		break;
-	case MAGNIFYLEFT:
-		statename = _strdup("MAGNIFYLEFT");
-		break;
+	//case MOVEUP:
+	//	statename = _strdup("MOVEUP");
+	//	break;
+	//case MOVEDOWN:
+	//	statename = _strdup("MOVEDOWN");
+	//	break;
+	//case MOVELEFT:
+	//	statename = _strdup("MOVELEFT");
+	//	break;
+	//case MOVERIGHT:
+	//	statename = _strdup("MOVERIGHT");
+	//	break;
+	//case MAGNIFYUP:
+	//	statename = _strdup("MAGNIFYUP");
+	//	break;
+	//case MAGNIFYDOWN:
+	//	statename = _strdup("MAGNIFYDOWN");
+	//	break;
+	//case MAGNIFYRIGHT:
+	//	statename = _strdup("MAGNIFYRIGHT");
+	//	break;
+	//case MAGNIFYLEFT:
+	//	statename = _strdup("MAGNIFYLEFT");
+	//	break;
 	default:
 		statename = _strdup("UNKNOWN");
 	}
 
-	// I want to pass a char*.  The function wants an int*.  Solve the problem by casting.
-	// Note, the other uses are casting an int* to an int anyway, so this isn't anything particularly out of the ordinary
-	void* tmp = (void*)statename;
-	LONG_PTR longptr = (LONG_PTR) tmp;
-	// Actually post the message to the output
-	::PostMessageW(hwnd, WM_USER_UPDATE_STATE, IDC_STATE, longptr);
+	// If this is the active skeleton, print its state
+	if (id == activeSkeleton)
+	{
+		// I want to pass a char*.  The function wants an int*.  Solve the problem by casting.
+		// Note, the other uses are casting an int* to an int anyway, so this isn't anything particularly out of the ordinary
+		void* tmp = (void*)statename;
+		LONG_PTR longptr = (LONG_PTR) tmp;
+		// Actually post the message to the output
+		::PostMessageW(hwnd, WM_USER_UPDATE_STATE, IDC_STATE, longptr);
+	}
 
 	// Delete the old string, keep the new one
 	if (name != NULL)
 	{
+		// free(), since using strdup()
 		free(name);
 	}
 	name = statename;

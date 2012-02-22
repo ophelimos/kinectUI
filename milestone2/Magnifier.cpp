@@ -614,7 +614,30 @@ float GetMagnificationFactor(){
 	}
 	else
 	{
+		// Make sure the floor isn't a ridiculous value
+		if (magnificationFloor > 8.0f)
+		{
+			magnificationFloor = 8.0f;
+		}
+		if (magnificationFloor < -8.0f)
+		{
+			magnificationFloor = -8.0f;
+		}
+
 		float convertedDistance = (distanceInMM / 1000.0f) + magnificationFloor;
+
+		// No going nuts with the magnification
+		if (convertedDistance < 1.0f)
+		{
+			return 1.0f;
+		}
+
+		// No going nuts with the magnification
+		if (convertedDistance > 32.0f)
+		{
+			return 32.0f;
+		}
+
 		return convertedDistance;
 	}
 }

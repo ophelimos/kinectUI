@@ -18,9 +18,10 @@ const FLOAT detectRange = 0.2f;
 const long long timeout = 50000000;
 const FLOAT saluteOver = 0.3f;
 const FLOAT saluteUp = 0.2f;
-const FLOAT bodyOver = 0.5f;
-const LONG moveAmount = 50;
-const float magnifyAmount = 0.1f;
+const FLOAT magnifyOver = 0.5f;
+const FLOAT moveDown = 0.2f;
+//const LONG moveAmount = 50;
+//const float magnifyAmount = 0.1f;
 
 enum Direction {
 	RIGHT,
@@ -34,7 +35,7 @@ class GestureDetector
 private:
 
 public:
-	GestureDetector(HWND assocHwnd);
+	GestureDetector(HWND assocHwnd, int userId);
 	~GestureDetector(void);
 
 	/* Class Variables */
@@ -44,13 +45,16 @@ public:
 	Direction hand;
 	/* State */
 	GestureState* state;
-	/* Necessary for debugging */
-	HWND hwnd;
+	// Now that we have multiple detectors, we need to know which user we refer to
+	int id;
 
 	/* Functions */
-	void detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum);
+	void detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame, int skeletonNum);
 	bool areClose(Vector4 &obj1, Vector4 &obj2, double range);
 	long long getTimeIn100NSIntervals();
-	void GestureDetector::moveCursor(Direction dir);
-};
+	void moveCursor(Direction dir);
+	void GestureDetector::getDifference(Vector4 now, Vector4 prev, FLOAT& displacement_x, FLOAT& displacement_y);
 
+	/* Necessary for debugging */
+	HWND hwnd;
+};

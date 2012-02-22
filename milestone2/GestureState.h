@@ -9,21 +9,15 @@ enum GestureStateEnum {
 	SALUTE1,
 	SALUTE2,
 	BODYCENTER,
-	MOVELEFT,
-	MOVERIGHT,
-	MOVEUP,
-	MOVEDOWN,
-	MAGNIFYUP,
-	MAGNIFYDOWN,
-	MAGNIFYRIGHT,
-	MAGNIFYLEFT
+	MOVE,
+	MAGNIFY,
 	/* add more as necessary */
 };
 
 class GestureState
 {
 public:
-	GestureState(HWND assocHwnd);
+	GestureState(HWND assocHwnd, int userId);
 	~GestureState(void);
 	
 	GestureStateEnum state;
@@ -33,4 +27,7 @@ public:
 	GestureState& operator=(GestureState& other);
 	void set(GestureStateEnum newState);
 	void updateDebug();
+
+	// Since we have multiple gesture detectors, we need to know who we are.
+	int id;
 };

@@ -1,35 +1,59 @@
 #include "GestureDetector.h"
+#include "SkeletalViewer.h"
 #include <cmath>
 #include <winuser.h>
 
 extern int activeSkeleton;
-extern float magnificationFloor;
+extern LONG moveAmount_x;
+extern LONG moveAmount_y;
+extern float magnifyAmount;
 
-GestureDetector::GestureDetector(HWND assocHwnd)
+GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 {
 	startTime = getTimeIn100NSIntervals();
 	hwnd = assocHwnd;
-	state = new GestureState(hwnd);
+	id = userId;
+	state = new GestureState(hwnd, userId);
 	state->set(OFF);
 }
 
-
 GestureDetector::~GestureDetector(void)
 {
-  delete state;
+	delete state;
 }
 
-void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum)
+void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame, int skeletonNum)
 {
 	NUI_SKELETON_DATA SkeletonData = SkeletonFrame.SkeletonData[skeletonNum];
+	NUI_SKELETON_DATA prevSkeletonData = prevFrame.SkeletonData[skeletonNum];
 	// The compiler does not like initializing variables within case statements
 	Vector4 headPoint;
 	Vector4 rightHandPoint;
 	Vector4 leftHandPoint;
 	Vector4 handPoint;
 	Vector4 spinePoint;
-	Vector4 upPoint, downPoint, leftPoint, rightPoint;
+	Vector4 magnifyPoint;
+	Vector4 movePoint;
+	FLOAT displacement_x = 0;
+	FLOAT displacement_y = 0;
 	long long curTime = 0;
+
+	// Do as much as we can before entering the state machine, because long states are confusing
+
+	// Most states are only applicable if we're the active skeleton
+	if ( (state->state != OFF || state->state != SALUTE1) && id != activeSkeleton)
+	{
+		state->set(OFF);
+		return;
+	}
+
+	// Timeout any state other than OFF
+	curTime = getTimeIn100NSIntervals();
+	if ( (curTime - startTime) > timeout )
+	{
+		state->set(OFF);
+	}
+
 	switch (state->state)
 	{
 		case OFF:
@@ -54,12 +78,6 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum)
 			}
 			break;
 		case SALUTE1:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
 			// Check for saluting action (box up and away)
 			headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
 			headPoint.y += saluteUp;
@@ -80,6 +98,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum)
 			  // Right now, an alert to let me know gesture tracking is working
 			  //MessageBox(NULL, "Salute detected", "Gesture Detection", NULL);
 			  // Change the active user
+			  // This is a race condition, but what it's doing is also inherently one
 			  activeSkeleton = skeletonNum;
 			  startTime = getTimeIn100NSIntervals();
 			  return;
@@ -87,12 +106,6 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum)
 			// Otherwise, keep looking (until the timeout)
 			break;
 		case SALUTE2:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
 			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 			if (hand == RIGHT)
 			{
@@ -111,391 +124,99 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum)
 			// Otherwise, keep looking (until the timeout)
 			break;
 		case BODYCENTER:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
 			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
+			headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+			magnifyPoint = spinePoint;
+			movePoint = headPoint;
+			movePoint.y -= moveDown;
 			if (hand == RIGHT)
 			{
 				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+				magnifyPoint.x += magnifyOver;
 			}
 			else
 			{
 				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+				magnifyPoint.x -= magnifyOver;
 			}
-			if (areClose(rightPoint, handPoint, detectRange))
+			if (areClose(movePoint, handPoint, detectRange))
 			{
-				state->set(MOVERIGHT);
+				state->set(MOVE);
 				startTime = getTimeIn100NSIntervals();
 				return;
 			}
-			if (areClose(leftPoint, handPoint, detectRange))
+			if (areClose(magnifyPoint, handPoint, detectRange))
 			{
-				state->set(MOVELEFT);
-				startTime = getTimeIn100NSIntervals();
-				return;
-			}
-			if (areClose(upPoint, handPoint, detectRange))
-			{
-				state->set(MOVEUP);
-				startTime = getTimeIn100NSIntervals();
-				return;
-			}
-			if (areClose(downPoint, handPoint, detectRange))
-			{
-				state->set(MOVEDOWN);
+				state->set(MAGNIFY);
 				startTime = getTimeIn100NSIntervals();
 				return;
 			}
 			// Otherwise, keep looking (until the timeout)
 			break;
-		case MOVERIGHT:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
+		case MOVE:
 			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
+			headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+			movePoint = headPoint;
+			movePoint.y -= moveDown;
 			if (hand == RIGHT)
 			{
 				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+				// Add velocity
+				getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
 			}
 			else
 			{
 				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+				// Add velocity
+				getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
 			}
-			if (areClose(spinePoint, handPoint, detectRange))
-			{
-				state->set(BODYCENTER);
-				startTime = getTimeIn100NSIntervals();
-				moveCursor(RIGHT);
-				return;
-			}
-			if (areClose(upPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYUP);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
-				return;
-			}
-			if (areClose(downPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYDOWN);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
-				return;
-			}
-			// Otherwise, keep looking (until the timeout)
-			break;
-		case MOVELEFT:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
-			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
-			if (hand == RIGHT)
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			}
-			else
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			}
-			if (areClose(spinePoint, handPoint, detectRange))
-			{
-				state->set(BODYCENTER);
-				startTime = getTimeIn100NSIntervals();
-				moveCursor(LEFT);
-				return;
-			}
-			if (areClose(upPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYUP);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
-				return;
-			}
-			if (areClose(downPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYDOWN);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
-				return;
-			}
-			// Otherwise, keep looking (until the timeout)
-			break;
-		case MOVEUP:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
-			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			if (hand == RIGHT)
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			}
-			else
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			}
-			if (areClose(spinePoint, handPoint, detectRange))
-			{
-				state->set(BODYCENTER);
-				startTime = getTimeIn100NSIntervals();
-				moveCursor(UP);
-				return;
-			}
-			if (areClose(rightPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYRIGHT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
-				return;
-			}
-			if (areClose(leftPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYLEFT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
-				return;
-			}
-			// Otherwise, keep looking (until the timeout)
-			break;
-		case MOVEDOWN:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
-			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			if (hand == RIGHT)
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			}
-			else
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			}
-			if (areClose(spinePoint, handPoint, detectRange))
-			{
-				state->set(BODYCENTER);
-				startTime = getTimeIn100NSIntervals();
-				moveCursor(DOWN);
-				return;
-			}
-			if (areClose(leftPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYLEFT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
-				return;
-			}
-			if (areClose(rightPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYRIGHT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
-				return;
-			}
-			// Otherwise, keep looking (until the timeout)
-			break;
-		case MAGNIFYRIGHT:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
-			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
-			if (hand == RIGHT)
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			}
-			else
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			}
+			// Back to BODYCENTER (required to switch over to magnifying)
 			if (areClose(spinePoint, handPoint, detectRange))
 			{
 				state->set(BODYCENTER);
 				startTime = getTimeIn100NSIntervals();
 				return;
 			}
-			if (areClose(upPoint, handPoint, detectRange))
+			// Stay in the MOVE state, adjust movement velocity
+			if (areClose(movePoint, handPoint, detectRange))
 			{
-				state->set(MAGNIFYUP);
 				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
-				return;
-			}
-			if (areClose(downPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYDOWN);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
+				moveAmount_x += (LONG) (displacement_x * 128);
+				moveAmount_y += (LONG) (displacement_y * 128);
 				return;
 			}
 			// Otherwise, keep looking (until the timeout)
 			break;
-		case MAGNIFYLEFT:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
+		case MAGNIFY:
 			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			upPoint = spinePoint;
-			upPoint.y += bodyOver;
-			downPoint = spinePoint;
-			downPoint.y -= bodyOver;
+			magnifyPoint = spinePoint;
 			if (hand == RIGHT)
 			{
 				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+				magnifyPoint.x += magnifyOver;
+				// Add velocity
+				getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
 			}
 			else
 			{
 				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+				magnifyPoint.x -= magnifyOver;
+				// Add velocity
+				getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
 			}
+			// Back to BODYCENTER (can switch to MOVE)
 			if (areClose(spinePoint, handPoint, detectRange))
 			{
 				state->set(BODYCENTER);
 				startTime = getTimeIn100NSIntervals();
 				return;
 			}
-			if (areClose(upPoint, handPoint, detectRange))
+			// Keep magnifying, adjust the magnification amount
+			if (areClose(magnifyPoint, handPoint, detectRange))
 			{
-				state->set(MAGNIFYUP);
 				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
-				return;
-			}
-			if (areClose(downPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYDOWN);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
-				return;
-			}
-			// Otherwise, keep looking (until the timeout)
-			break;
-		case MAGNIFYUP:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
-			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			if (hand == RIGHT)
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			}
-			else
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			}
-			if (areClose(spinePoint, handPoint, detectRange))
-			{
-				state->set(BODYCENTER);
-				startTime = getTimeIn100NSIntervals();
-				return;
-			}
-			if (areClose(rightPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYRIGHT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
-				return;
-			}
-			if (areClose(leftPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYLEFT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
-				return;
-			}
-			// Otherwise, keep looking (until the timeout)
-			break;
-		case MAGNIFYDOWN:
-			curTime = getTimeIn100NSIntervals();
-			if ( (curTime - startTime) > timeout )
-			{
-				state->set(OFF);
-				return;
-			}
-			spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			rightPoint = spinePoint;
-			rightPoint.x += bodyOver;
-			leftPoint = spinePoint;
-			leftPoint.x -= bodyOver;
-			if (hand == RIGHT)
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			}
-			else
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			}
-			if (areClose(spinePoint, handPoint, detectRange))
-			{
-				state->set(BODYCENTER);
-				startTime = getTimeIn100NSIntervals();
-				return;
-			}
-			if (areClose(leftPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYLEFT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor -= magnifyAmount;
-				return;
-			}
-			if (areClose(rightPoint, handPoint, detectRange))
-			{
-				state->set(MAGNIFYRIGHT);
-				startTime = getTimeIn100NSIntervals();
-				magnificationFloor += magnifyAmount;
+				// Up is less magnification, Down is more magnification
+				magnifyAmount -= 2*displacement_y;
 				return;
 			}
 			// Otherwise, keep looking (until the timeout)
@@ -503,7 +224,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, int skeletonNum)
 	}
 }
 
-// Check if two Vector4 objects are within a certain rectangular range of each other
+// Check if two Vector4 objects are within a certain rectangular (switched to 2-d, since it's more intuititve) range of each other
 bool GestureDetector::areClose(Vector4 &obj1, Vector4 &obj2, double range)
 {
 	//if ( 
@@ -540,24 +261,38 @@ long long GestureDetector::getTimeIn100NSIntervals()
 	return li.QuadPart;
 }
 
-void GestureDetector::moveCursor(Direction dir)
+//void GestureDetector::moveCursor(Direction dir)
+//{
+//	POINT curPos;
+//	GetCursorPos(&curPos);
+//	switch (dir)
+//	{
+//	case RIGHT:
+//		curPos.x += moveAmount;
+//		break;	
+//	case LEFT:
+//		curPos.x -= moveAmount;
+//		break;
+//	case UP:
+//		curPos.y += moveAmount;
+//		break;
+//	case DOWN:
+//		curPos.y -= moveAmount;
+//		break;
+//	}
+//	SetCursorPos(curPos.x, curPos.y);
+//}
+
+// Figure out the distance between the two points, and therefore, how
+// quickly the point has moved
+void GestureDetector::getDifference(Vector4 now, Vector4 prev, FLOAT& displacement_x, FLOAT& displacement_y)
 {
-	POINT curPos;
-	GetCursorPos(&curPos);
-	switch (dir)
-	{
-	case RIGHT:
-		curPos.x += moveAmount;
-		break;	
-	case LEFT:
-		curPos.x -= moveAmount;
-		break;
-	case UP:
-		curPos.y += moveAmount;
-		break;
-	case DOWN:
-		curPos.y -= moveAmount;
-		break;
-	}
-	SetCursorPos(curPos.x, curPos.y);
+	// Manhattan distance.  I could do Euclidean, but I don't
+	// see the point, and this is faster.
+
+	// Signed, since we need to determine which direction the velocity is in.
+
+	// Only 2-D, since 3-D ends up being non-intuitive.
+	displacement_x = prev.x - now.x;
+	displacement_y = prev.y - now.y;
 }
