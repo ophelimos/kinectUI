@@ -632,13 +632,26 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
         }
     }
 
-	// Draw the gesture hitbox
+	// Draw the gesture hitboxes
 	if ((gestureDetectors[WhichSkeletonColor] != NULL) && (WhichSkeletonColor == activeSkeleton))
 	{
 		GestureDetector* gestureDetector = gestureDetectors[WhichSkeletonColor];
+		// Draw the 'cancel' hitboxes if we're in any state other than 'off'
+		if (gestureDetector->state->state != OFF)
+		{
+			HPEN hCancelPen;
+			hCancelPen = CreatePen(PS_DOT, 1, RGB(0,0,255));
+			hOldObj = SelectObject(m_SkeletonDC, hCancelPen);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], scaleX, scaleY);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], scaleX, scaleY);
+			SelectObject( m_SkeletonDC, hOldObj );
+			DeleteObject(hCancelPen);
+		}
+
+		// Make a new pen for the gesture hitboxes
 		HPEN hGesturePen;
 		// Hard-code to red for now
-		hGesturePen = CreatePen(PS_DASH, 3, RGB(255,0,0));
+		hGesturePen = CreatePen(PS_DASH, 1, RGB(255,0,0));
 		hOldObj = SelectObject(m_SkeletonDC, hGesturePen);
 
 		// Where we draw the box is going to depend on what gesture state we're in

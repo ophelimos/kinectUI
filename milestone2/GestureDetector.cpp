@@ -34,6 +34,8 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	Vector4 spinePoint;
 	Vector4 magnifyPoint;
 	Vector4 movePoint;
+	Vector4 rightShoulderPoint;
+	Vector4 leftShoulderPoint;
 	FLOAT displacement_x = 0;
 	FLOAT displacement_y = 0;
 	long long curTime = 0;
@@ -50,6 +52,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	// Timeout any state other than OFF
 	curTime = getTimeIn100NSIntervals();
 	if ( (curTime - startTime) > timeout )
+	{
+		state->set(OFF);
+	}
+
+	// If they make the "cancel" gesture, turn off gesture recognition
+	// In this case the "cancel" gesture is hands _crossed_ and touching the shoulders
+	rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+	leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+	rightShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT];
+	leftShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT];
+
+	if (areClose(leftShoulderPoint, rightHandPoint, detectRange) && areClose(rightShoulderPoint, leftHandPoint, detectRange))
 	{
 		state->set(OFF);
 	}
