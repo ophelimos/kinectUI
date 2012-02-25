@@ -57,6 +57,7 @@ public:
     static void CALLBACK    Nui_StatusProcThunk(const NuiStatusData *pStatusData);
     void CALLBACK           Nui_StatusProc(const NuiStatusData *pStatusData);
 
+	// Magnifier hwnd
     HWND m_hWnd;
 
 private:

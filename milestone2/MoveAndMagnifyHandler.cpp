@@ -5,6 +5,7 @@
 // and throwing a ton of static variables into GestureDetector gets cumbersome
 
 extern float magnificationFloor;
+extern int hideWindowTimeout;
 
 // Global variables, so GestureDetector can access them
 LONG moveAmount_x;
@@ -54,6 +55,25 @@ MoveAndMagnifyHandler::~MoveAndMagnifyHandler(void)
 // Short function to handle moving and magnifying every timer interval
 void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* lpParameter, BOOLEAN TimerOrWaitFired)
 {
+	// View skeletal viewer handler
+	// Stop us from immediately re-enabling after disabling
+	if (hideWindowTimeout < 30)
+	{
+		hideWindowTimeout++;
+	}
+	else if (GetAsyncKeyState(VK_HOME))
+	{
+		if (IsWindowVisible(hwnd))
+		{
+			ShowWindow(hwnd, SW_HIDE);
+		}
+		else
+		{
+			ShowWindow(hwnd, SW_SHOW);
+		}
+		hideWindowTimeout = 0;
+	}
+
 	// Print the amounts
 	::PostMessageW(hwnd, WM_USER_UPDATE_MOVEX, IDC_MOVEX, moveAmount_x);
 	::PostMessageW(hwnd, WM_USER_UPDATE_MOVEY, IDC_MOVEY, moveAmount_y);
@@ -68,12 +88,12 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* lpParameter, BOOLEAN Tim
 	POINT curPos;
 	GetCursorPos(&curPos);
 	// Negative, because it feels more intuitive
-	curPos.x -= moveAmount_x;
+	curPos.x += moveAmount_x;
 	curPos.y += moveAmount_y;
 	SetCursorPos(curPos.x, curPos.y);
 
 	// Exponentially decrease amounts (friction)
 	magnifyAmount /= 2;
-	moveAmount_x /= 1.2;
-	moveAmount_y /= 1.2;
+	moveAmount_x /= 2;
+	moveAmount_y /= 2;
 }

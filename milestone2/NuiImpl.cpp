@@ -636,17 +636,14 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 	if ((gestureDetectors[WhichSkeletonColor] != NULL) && (WhichSkeletonColor == activeSkeleton))
 	{
 		GestureDetector* gestureDetector = gestureDetectors[WhichSkeletonColor];
-		// Draw the 'cancel' hitboxes if we're in any state other than 'off'
-		if (gestureDetector->state->state != OFF)
-		{
-			HPEN hCancelPen;
-			hCancelPen = CreatePen(PS_DOT, 1, RGB(0,0,255));
-			hOldObj = SelectObject(m_SkeletonDC, hCancelPen);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], scaleX, scaleY);
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], scaleX, scaleY);
-			SelectObject( m_SkeletonDC, hOldObj );
-			DeleteObject(hCancelPen);
-		}
+		// Always draw the 'cancel' hitboxes
+		HPEN hCancelPen;
+		hCancelPen = CreatePen(PS_DOT, 1, RGB(0,0,255));
+		hOldObj = SelectObject(m_SkeletonDC, hCancelPen);
+		DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], scaleX, scaleY);
+		DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], scaleX, scaleY);
+		SelectObject( m_SkeletonDC, hOldObj );
+		DeleteObject(hCancelPen);
 
 		// Make a new pen for the gesture hitboxes
 		HPEN hGesturePen;
@@ -657,8 +654,10 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 		// Where we draw the box is going to depend on what gesture state we're in
 		Vector4 headPoint;
 		Vector4 spinePoint;
-		Vector4 magnifyPoint;
-		Vector4 movePoint;
+		// Vector4 magnifyPoint;
+		// Vector4 movePoint;
+		Vector4 centerPoint;
+		Vector4 upPoint, downPoint, leftPoint, rightPoint;
 		switch (gestureDetector->state->state)
 		{
 		case OFF:
@@ -684,43 +683,68 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 			break;
 		case BODYCENTER:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			headPoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
-			magnifyPoint = spinePoint;
+			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				magnifyPoint.x += magnifyOver;
+				centerPoint.x += centerOver;
 			} 
 			else 
 			{
-				magnifyPoint.x -= magnifyOver;
+				centerPoint.x -= centerOver;
 			}
-			movePoint = headPoint;
-			movePoint.y -= moveDown;
-			DrawBox(movePoint, scaleX, scaleY);
-			DrawBox(magnifyPoint, scaleX, scaleY);
+			DrawBox(centerPoint, scaleX, scaleY);
+			break;
+		case MOVECENTER:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			centerPoint = spinePoint;
+			if (gestureDetector->hand == RIGHT)
+			{
+				centerPoint.x += centerOver;
+			} 
+			else 
+			{
+				centerPoint.x -= centerOver;
+			}
+			upPoint = centerPoint;
+			upPoint.y += directionRadius;
+			downPoint = centerPoint;
+			downPoint.y -= directionRadius;
+			rightPoint = centerPoint;
+			rightPoint.x += directionRadius;
+			leftPoint = centerPoint;
+			leftPoint.x -= directionRadius;
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(rightPoint, scaleX, scaleY);
 			break;
 		case MOVE:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			headPoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
-			movePoint = headPoint;
-			movePoint.y -= moveDown;
-			DrawBox(spinePoint, scaleX, scaleY);
-			DrawBox(movePoint, scaleX, scaleY);
-			break;
-		case MAGNIFY:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			magnifyPoint = spinePoint;
+			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				magnifyPoint.x += magnifyOver;
+				centerPoint.x += centerOver;
 			} 
 			else 
 			{
-				magnifyPoint.x -= magnifyOver;
+				centerPoint.x -= centerOver;
 			}
-			DrawBox(magnifyPoint, scaleX, scaleY);
-			DrawBox(spinePoint, scaleX, scaleY);
+			DrawBox(centerPoint, scaleX, scaleY);
 			break;
+		// case MAGNIFY:
+		// 	spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		// 	magnifyPoint = spinePoint;
+		// 	if (gestureDetector->hand == RIGHT)
+		// 	{
+		// 		magnifyPoint.x += magnifyOver;
+		// 	} 
+		// 	else 
+		// 	{
+		// 		magnifyPoint.x -= magnifyOver;
+		// 	}
+		// 	DrawBox(magnifyPoint, scaleX, scaleY);
+		// 	DrawBox(spinePoint, scaleX, scaleY);
+		// 	break;
 		}
 
 		// Cleanup

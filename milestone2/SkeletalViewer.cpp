@@ -30,6 +30,7 @@ HINSTANCE			g_hInst;				// current instance
 HWND				g_hWndApp;				// Windows Handle to main application
 TCHAR				g_szAppTitle[256];		// Application title
 int					activeSkeleton = -1;			// The skeleton we care about for gestures
+extern int			hideWindowTimeout;
 
 
 GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
@@ -290,16 +291,13 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 		}
 		break;
 		// Handle key presses
-		//case WM_KEYUP:
-		//switch (wParam)
-		//{
-		//default:
-		// Print the info about the key I just pressed
-		//char msg[1024];
-		//sprintf_s (msg, 1024, "wParam: %s lParam: %s", wParam, lParam);
-		//MessageBox(hWnd, msg, TEXT("Display pressed character"), NULL);
-		//}
-		//break;
+	//case WM_KEYDOWN:
+	//	if (wParam == VK_F9)
+	//	{
+	//		ShowWindow(g_hWndApp, SW_HIDE);
+	//		hideWindowTimeout = 0;
+	//		break;
+	//	}        
 		// If the titlebar X is clicked destroy app
 	case WM_CLOSE:
 		DestroyWindow(hWnd);
@@ -319,8 +317,6 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 	}
 	return (FALSE);
 }
-
-
 
 /*****************************************************************************/
 /* int MessageBoxResourceV(HWND hwnd,UINT nID,UINT nType, ... )

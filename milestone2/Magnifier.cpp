@@ -130,6 +130,11 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		{
 			GoFullScreen();
 		}
+		else if (wParam == VK_F5)
+		{
+			isMagnifierOff = TRUE;
+			HideMagnifier();
+		}
 
 	case WM_SYSCOMMAND: 
 		if (GET_SC_WPARAM(wParam) == SC_MAXIMIZE) 
@@ -426,6 +431,25 @@ RECT GetSourceRect (){
 //
 void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/)
 {
+	if (isMagnifierOff)
+	{
+		// Stop us from immediately re-enabling after disabling
+		if (hideWindowTimeout < 30)
+		{
+			hideWindowTimeout++;
+			return;
+		}
+		if (GetAsyncKeyState(VK_F5))
+		{
+			isMagnifierOff = FALSE;
+			HideMagnifier();
+		}
+		else
+		{
+			// Don't bother processing if magnification is off
+			return;
+		}
+	}
 	UpdateMagnificationFactor();
 	RECT sourceRect = GetSourceRect();
 	// Set the source rectangle for the magnifier control.
@@ -606,7 +630,35 @@ int CaptureAnImage(HWND hWnd)
 	return 0;
 }
 
+//
+// FUNCTION: HideMagnifier()
+//
+// PURPOSE: Hide all the magnification windows to allow users to "turn off magnification"
+//
+void HideMagnifier()
+{
+	int windowState = ShowWindow(hwndMag, SW_HIDE);
+	if (windowState == 0) // Previously hidden
+	{
+		ShowWindow(hwndMag, SW_SHOW);
+		ShowWindow(hwndViewfinder, SW_SHOW);
+		ShowWindow(hwndLens, SW_SHOW);
+		ShowWindow(hwndHost, SW_SHOW);
+	}
+	else  // Previously visible
+	{
+		ShowWindow(hwndViewfinder, SW_HIDE);
+		ShowWindow(hwndLens, SW_HIDE);
+		ShowWindow(hwndHost, SW_HIDE);
+	}
+	hideWindowTimeout = 0;
+}
 
+//
+// FUNCTION: GetMagnificationFactor()
+//
+// PURPOSE: Determine how much to magnify the screen by.
+//
 float GetMagnificationFactor(){
 	if (distanceInMM < 1000)
 	{

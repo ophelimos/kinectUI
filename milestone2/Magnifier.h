@@ -1,3 +1,12 @@
+/************************************************************************
+*                                                                       *
+*   Magnifier.h -- Header for Magnifier.cpp                             *
+*                                                                       *
+*                                                                       *
+************************************************************************/
+
+#pragma once
+
 // Ensure that the following definition is in effect before winuser.h is included.
 #define _WIN32_WINNT 0x0501    
 
@@ -26,6 +35,8 @@ RECT                magWindowRect;
 RECT                lensWindowRect;
 RECT                viewfinderWindowRect;
 RECT                hostWindowRect;
+BOOL				isMagnifierOff = FALSE;
+int					hideWindowTimeout = 0;
 
 // Forward declarations.
 ATOM                RegisterHostWindowClass(HINSTANCE hInstance);
@@ -43,5 +54,6 @@ void                ApplyLensRestrictions (RECT sourceRect);
 float               GetMagnificationFactor();
 RECT                GetSourceRect ();
 BOOL                isFullScreen = FALSE;
+void				HideMagnifier();
 
 extern int distanceInMM;
