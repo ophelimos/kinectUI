@@ -681,12 +681,14 @@ float GetMagnificationFactor(){
 		// No going nuts with the magnification
 		if (convertedDistance < 1.0f)
 		{
+			magnificationFloor = 1.0f - (distanceInMM / 1000.0f);
 			return 1.0f;
 		}
 
 		// No going nuts with the magnification
 		if (convertedDistance > 32.0f)
 		{
+			magnificationFloor = 32.0f - (distanceInMM / 1000.0f);
 			return 32.0f;
 		}
 

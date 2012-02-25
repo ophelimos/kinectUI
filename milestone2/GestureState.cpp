@@ -79,18 +79,21 @@ void GestureState::updateDebug()
 	//case MOVERIGHT:
 	//	statename = _strdup("MOVERIGHT");
 	//	break;
-	//case MAGNIFYUP:
-	//	statename = _strdup("MAGNIFYUP");
-	//	break;
-	//case MAGNIFYDOWN:
-	//	statename = _strdup("MAGNIFYDOWN");
-	//	break;
-	//case MAGNIFYRIGHT:
-	//	statename = _strdup("MAGNIFYRIGHT");
-	//	break;
-	//case MAGNIFYLEFT:
-	//	statename = _strdup("MAGNIFYLEFT");
-	//	break;
+	case MAGNIFYUP:
+		statename = _strdup("MAGNIFYUP");
+		break;
+	case MAGNIFYDOWN:
+		statename = _strdup("MAGNIFYDOWN");
+		break;
+	case MAGNIFYRIGHT:
+		statename = _strdup("MAGNIFYRIGHT");
+		break;
+	case MAGNIFYLEFT:
+		statename = _strdup("MAGNIFYLEFT");
+		break;
+	case MAGNIFYCENTER:
+		statename = _strdup("MAGNIFYCENTER");
+		break;
 	default:
 		statename = _strdup("UNKNOWN");
 	}

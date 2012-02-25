@@ -9,10 +9,11 @@ enum GestureStateEnum {
 	SALUTE1,
 	SALUTE2,
 	BODYCENTER,
-	/* MOVEUP, */
-	/* MOVEDOWN, */
-	/* MOVELEFT, */
-	/* MOVERIGHT, */
+	MAGNIFYCENTER,
+	MAGNIFYUP,
+	MAGNIFYDOWN,
+	MAGNIFYLEFT,
+	MAGNIFYRIGHT,
 	MOVE,
 	MOVECENTER,
 	/* add more as necessary */

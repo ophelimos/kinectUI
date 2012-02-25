@@ -10,6 +10,7 @@ extern float magnifyAmount;
 // Including Magnifier.h is a *bad* idea, since it's not namespaced away in a class.  That really should be done at some point.
 void HideMagnifier();
 extern int hideWindowTimeout;
+extern float magnificationFloor;
 
 GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 {
@@ -79,6 +80,8 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		} 
 		else
 		{
+			// Reset magnification value
+			magnificationFloor = 0;
 			HideMagnifier();
 			state->set(OFF);
 		}
@@ -144,17 +147,26 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		break;
 	case SALUTE2:
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
 		if (hand == RIGHT)
 		{
 			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
 		}
 		else
 		{
 			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
 		}
 		if (areClose(spinePoint, handPoint, detectRange))
 		{
 			state->set(BODYCENTER);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		if (areClose(centerPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYCENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
@@ -259,40 +271,281 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
-	// case MAGNIFY:
-	// 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-	// 	magnifyPoint = spinePoint;
-	// 	if (hand == RIGHT)
-	// 	{
-	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-	// 		magnifyPoint.x += magnifyOver;
-	// 		// Add velocity
-	// 		getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
-	// 	}
-	// 	else
-	// 	{
-	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-	// 		magnifyPoint.x -= magnifyOver;
-	// 		// Add velocity
-	// 		getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
-	// 	}
-	// 	// Back to BODYCENTER (can switch to MOVE)
-	// 	if (areClose(spinePoint, handPoint, detectRange))
-	// 	{
-	// 		state->set(BODYCENTER);
-	// 		startTime = getTimeIn100NSIntervals();
-	// 		return;
-	// 	}
-	// 	// Keep magnifying, adjust the magnification amount
-	// 	if (areClose(magnifyPoint, handPoint, detectRange))
-	// 	{
-	// 		startTime = getTimeIn100NSIntervals();
-	// 		// Up is less magnification, Down is more magnification
-	// 		magnifyAmount -= 2*displacement_y;
-	// 		return;
-	// 	}
-	// 	// Otherwise, keep looking (until the timeout)
-	// 	break;
+	case MAGNIFYCENTER:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+		}
+		// Place the direction arrows
+		upPoint = centerPoint;
+		upPoint.y += directionRadius;
+		if (areClose(upPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYUP);
+			return;
+		}
+		downPoint = centerPoint;
+		downPoint.y -= directionRadius;
+		if (areClose(downPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYDOWN);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		rightPoint = centerPoint;
+		rightPoint.x += directionRadius;
+		if (areClose(rightPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYRIGHT);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		leftPoint = centerPoint;
+		leftPoint.x -= directionRadius;
+		if (areClose(leftPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYLEFT);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Otherwise, keep looking (until the timeout)
+		break;
+	case MAGNIFYUP:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Place the direction arrows
+		// upPoint = centerPoint;
+		// upPoint.y += directionRadius;
+		// if (areClose(upPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYUP);
+		// 	return;
+		// }
+		// downPoint = centerPoint;
+		// downPoint.y -= directionRadius;
+		// if (areClose(downPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYDOWN);
+		// 	startTime = getTimeIn100NSIntervals();
+		// 	return;
+		// }
+		rightPoint = centerPoint;
+		rightPoint.x += directionRadius;
+		if (areClose(rightPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYRIGHT);
+			// Clockwise is increase magnification
+			magnifyAmount += abs(displacement_x + displacement_y);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		leftPoint = centerPoint;
+		leftPoint.x -= directionRadius;
+		if (areClose(leftPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYLEFT);
+			// Counterclockwise is decrease magnification
+			magnifyAmount -= abs(displacement_x + displacement_y);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Otherwise, keep looking (until the timeout)
+		break;
+	case MAGNIFYDOWN:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Place the direction arrows
+		// upPoint = centerPoint;
+		// upPoint.y += directionRadius;
+		// if (areClose(upPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYUP);
+		// 	return;
+		// }
+		// downPoint = centerPoint;
+		// downPoint.y -= directionRadius;
+		// if (areClose(downPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYDOWN);
+		// 	startTime = getTimeIn100NSIntervals();
+		// 	return;
+		// }
+		rightPoint = centerPoint;
+		rightPoint.x += directionRadius;
+		if (areClose(rightPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYRIGHT);
+			// Counterclockwise is increase magnification
+			magnifyAmount -= abs(displacement_x + displacement_y);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		leftPoint = centerPoint;
+		leftPoint.x -= directionRadius;
+		if (areClose(leftPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYLEFT);
+			// Clockwise is decrease magnification
+			magnifyAmount += abs(displacement_x + displacement_y);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Otherwise, keep looking (until the timeout)
+		break;
+	case MAGNIFYLEFT:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Place the direction arrows
+		upPoint = centerPoint;
+		upPoint.y += directionRadius;
+		if (areClose(upPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYUP);
+			// Clockwise is increase magnification
+			magnifyAmount += abs(displacement_x + displacement_y);
+			return;
+		}
+		downPoint = centerPoint;
+		downPoint.y -= directionRadius;
+		if (areClose(downPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYDOWN);
+			// Counterclockwise is decrease magnification
+			magnifyAmount -= abs(displacement_x + displacement_y);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// rightPoint = centerPoint;
+		// rightPoint.x += directionRadius;
+		// if (areClose(rightPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYRIGHT);
+		// 	// Clockwise is increase magnification
+		// 	magnifyAmount += abs(displacement_x + displacement_y);
+		// 	startTime = getTimeIn100NSIntervals();
+		// 	return;
+		// }
+		// leftPoint = centerPoint;
+		// leftPoint.x -= directionRadius;
+		// if (areClose(leftPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYLEFT);
+		// 	// Counterclockwise is decrease magnification
+		// 	magnifyAmount -= abs(displacement_x + displacement_y);
+		// 	startTime = getTimeIn100NSIntervals();
+		// 	return;
+		// }
+		// Otherwise, keep looking (until the timeout)
+		break;
+	case MAGNIFYRIGHT:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Place the direction arrows
+		upPoint = centerPoint;
+		upPoint.y += directionRadius;
+		if (areClose(upPoint, handPoint, detectRange))
+		{
+			// Counterclockwise is decrease magnification
+			magnifyAmount -= abs(displacement_x + displacement_y);
+			state->set(MAGNIFYUP);
+			return;
+		}
+		downPoint = centerPoint;
+		downPoint.y -= directionRadius;
+		if (areClose(downPoint, handPoint, detectRange))
+		{
+			state->set(MAGNIFYDOWN);
+			// Clockwise is increase magnification
+			magnifyAmount += abs(displacement_x + displacement_y);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// rightPoint = centerPoint;
+		// rightPoint.x += directionRadius;
+		// if (areClose(rightPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYRIGHT);
+		// 	// Clockwise is increase magnification
+		// 	magnifyAmount += abs(displacement_x + displacement_y);
+		// 	startTime = getTimeIn100NSIntervals();
+		// 	return;
+		// }
+		// leftPoint = centerPoint;
+		// leftPoint.x -= directionRadius;
+		// if (areClose(leftPoint, handPoint, detectRange))
+		// {
+		// 	state->set(MAGNIFYLEFT);
+		// 	// Counterclockwise is decrease magnification
+		// 	magnifyAmount -= abs(displacement_x + displacement_y);
+		// 	startTime = getTimeIn100NSIntervals();
+		// 	return;
+		// }
+		// Otherwise, keep looking (until the timeout)
+		break;
 	}
 }
 

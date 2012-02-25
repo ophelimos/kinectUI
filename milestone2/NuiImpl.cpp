@@ -679,7 +679,18 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 			DrawBox(headPoint, scaleX, scaleY);
 			break;
 		case SALUTE2:
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE], scaleX, scaleY);
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			centerPoint = spinePoint;
+			if (gestureDetector->hand == RIGHT)
+			{
+				centerPoint.x += centerOver;
+			} 
+			else 
+			{
+				centerPoint.x -= centerOver;
+			}
+			DrawBox(spinePoint, scaleX, scaleY);			
+			DrawBox(centerPoint, scaleX, scaleY);
 			break;
 		case BODYCENTER:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
@@ -731,20 +742,68 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 			}
 			DrawBox(centerPoint, scaleX, scaleY);
 			break;
-		// case MAGNIFY:
-		// 	spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-		// 	magnifyPoint = spinePoint;
-		// 	if (gestureDetector->hand == RIGHT)
-		// 	{
-		// 		magnifyPoint.x += magnifyOver;
-		// 	} 
-		// 	else 
-		// 	{
-		// 		magnifyPoint.x -= magnifyOver;
-		// 	}
-		// 	DrawBox(magnifyPoint, scaleX, scaleY);
-		// 	DrawBox(spinePoint, scaleX, scaleY);
-		// 	break;
+		case MAGNIFYCENTER:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			centerPoint = spinePoint;
+			if (gestureDetector->hand == RIGHT)
+			{
+				centerPoint.x += centerOver;
+			} 
+			else 
+			{
+				centerPoint.x -= centerOver;
+			}
+			upPoint = centerPoint;
+			upPoint.y += directionRadius;
+			downPoint = centerPoint;
+			downPoint.y -= directionRadius;
+			rightPoint = centerPoint;
+			rightPoint.x += directionRadius;
+			leftPoint = centerPoint;
+			leftPoint.x -= directionRadius;
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(rightPoint, scaleX, scaleY);
+			break;
+		case MAGNIFYUP:
+		case MAGNIFYDOWN:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			centerPoint = spinePoint;
+			if (gestureDetector->hand == RIGHT)
+			{
+				centerPoint.x += centerOver;
+			} 
+			else 
+			{
+				centerPoint.x -= centerOver;
+			}
+			rightPoint = centerPoint;
+			rightPoint.x += directionRadius;
+			leftPoint = centerPoint;
+			leftPoint.x -= directionRadius;
+			DrawBox(leftPoint, scaleX, scaleY);
+			DrawBox(rightPoint, scaleX, scaleY);
+			break;
+		case MAGNIFYLEFT:
+		case MAGNIFYRIGHT:
+			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+			centerPoint = spinePoint;
+			if (gestureDetector->hand == RIGHT)
+			{
+				centerPoint.x += centerOver;
+			} 
+			else 
+			{
+				centerPoint.x -= centerOver;
+			}
+			upPoint = centerPoint;
+			upPoint.y += directionRadius;
+			downPoint = centerPoint;
+			downPoint.y -= directionRadius;
+			DrawBox(upPoint, scaleX, scaleY);
+			DrawBox(downPoint, scaleX, scaleY);
+			break;
 		}
 
 		// Cleanup
