@@ -82,10 +82,16 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		{
 			return 0;
 		}
+        GdiplusStartupInput gdiplusStartupInput;
+        ULONG_PTR           gdiplusToken;
+   
+        // Initialize GDI+.
+        GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
 		if (FALSE == SetupMagnifier(hInstance))
 		{
 			return 0;
-		}
+		}        
 
 		ShowWindow(hwndHost, nCmdShow);
 		UpdateWindow(hwndHost);
@@ -102,6 +108,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		}
 
 		// Shut down.
+        GdiplusShutdown(gdiplusToken);
 		KillTimer(NULL, timerId);
 		MagUninitialize();
 		return (int) msg.wParam;
@@ -121,7 +128,6 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	case WM_KEYDOWN:
 		if (wParam == VK_ESCAPE)
 		{
-			CaptureAnImage(GetDesktopWindow());
 			ShowCursor(true);
 			PostQuitMessage(0);
 			break;
@@ -148,7 +154,6 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		break; 
 
 	case WM_DESTROY:
-		CaptureAnImage(GetDesktopWindow());
 		ShowCursor(true);
 		PostQuitMessage(0);
 		break;
@@ -314,13 +319,14 @@ BOOL SetupViewfinder(HINSTANCE hInst)
 	int xRes = GetSystemMetrics(SM_CXSCREEN);
 	int yRes = GetSystemMetrics(SM_CYSCREEN);
 	ReleaseDC(NULL, hDC);
-
+    
 	// Set bounds of viewfinder window according to screen size.
 	viewfinderWindowRect.top = yRes-(yRes/5);        
 	//viewfinderWindowRect.bottom = yRes;
 	viewfinderWindowRect.bottom = yRes/5;
 	viewfinderWindowRect.left = 0;
-	viewfinderWindowRect.right = xRes/5;    
+	viewfinderWindowRect.right = xRes/5;
+    
 	hwndViewfinder = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
 		ViewfinderClassName, ViewWindowTitle, 
 		WS_VISIBLE | WS_POPUP,
@@ -455,7 +461,8 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 	// Set the source rectangle for the magnifier control.
 	MagSetWindowSource(hwndMag, sourceRect);
         
-	UpdateLens();
+	UpdateLens();    
+    
 	// Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
 	SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, 
 		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
@@ -464,10 +471,11 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
 	// Make lens topmost window. 
 	SetWindowPos(hwndLens, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
-		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
+		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );    
 
 	// Force redraw.
-	InvalidateRect(hwndMag, NULL, TRUE);
+	InvalidateRect(hwndMag, NULL, TRUE);   
+    
 }
 
 
@@ -510,126 +518,6 @@ void GoFullScreen()
 	GetClientRect(hwndHost, &magWindowRect);
 }
 
-int CaptureAnImage(HWND hWnd)
-{
-	HDC hdcScreen;
-	HDC hdcWindow;
-	HDC hdcMemDC = NULL;
-	HBITMAP hbmScreen = NULL;
-	BITMAP bmpScreen;
-
-	// Retrieve the handle to a display device context for the client 
-	// area of the window. 
-	hdcScreen = GetDC(NULL);
-	hdcWindow = GetDC(hWnd);
-
-	// Create a compatible DC which is used in a BitBlt from the window DC
-	hdcMemDC = CreateCompatibleDC(hdcWindow); 
-
-	// Get the client area for size calculation
-	RECT rcClient;
-	GetClientRect(hWnd, &rcClient);
-
-	//This is the best stretch mode
-	SetStretchBltMode(hdcWindow,HALFTONE);
-
-	//The source DC is the entire screen and the destination DC is the current window (HWND)
-	StretchBlt(hdcWindow, 
-		0,0, 
-		rcClient.right, rcClient.bottom, 
-		hdcScreen, 
-		0,0,
-		GetSystemMetrics (SM_CXSCREEN),
-		GetSystemMetrics (SM_CYSCREEN),
-		SRCCOPY);
-
-	// Create a compatible bitmap from the Window DC
-	hbmScreen = CreateCompatibleBitmap(hdcWindow, rcClient.right-rcClient.left, rcClient.bottom-rcClient.top);
-
-	// Select the compatible bitmap into the compatible memory DC.
-	SelectObject(hdcMemDC,hbmScreen);
-
-	// Bit block transfer into our compatible memory DC.
-	BitBlt(hdcMemDC, 
-		0,0, 
-		rcClient.right-rcClient.left, rcClient.bottom-rcClient.top, 
-		hdcWindow, 
-		0,0,
-		SRCCOPY);
-
-	// Get the BITMAP from the HBITMAP
-	GetObject(hbmScreen,sizeof(BITMAP),&bmpScreen);
-
-	BITMAPFILEHEADER   bmfHeader;    
-	BITMAPINFOHEADER   bi;
-
-	bi.biSize = sizeof(BITMAPINFOHEADER);    
-	bi.biWidth = bmpScreen.bmWidth;    
-	bi.biHeight = bmpScreen.bmHeight;  
-	bi.biPlanes = 1;    
-	bi.biBitCount = 32;    
-	bi.biCompression = BI_RGB;    
-	bi.biSizeImage = 0;  
-	bi.biXPelsPerMeter = 0;    
-	bi.biYPelsPerMeter = 0;    
-	bi.biClrUsed = 0;    
-	bi.biClrImportant = 0;
-
-	DWORD dwBmpSize = ((bmpScreen.bmWidth * bi.biBitCount + 31) / 32) * 4 * bmpScreen.bmHeight;
-
-	// Starting with 32-bit Windows, GlobalAlloc and LocalAlloc are implemented as wrapper functions that 
-	// call HeapAlloc using a handle to the process's default heap. Therefore, GlobalAlloc and LocalAlloc 
-	// have greater overhead than HeapAlloc.
-	HANDLE hDIB = GlobalAlloc(GHND,dwBmpSize); 
-	char *lpbitmap = (char *)GlobalLock(hDIB);    
-
-	// Gets the "bits" from the bitmap and copies them into a buffer 
-	// which is pointed to by lpbitmap.
-	GetDIBits(hdcWindow, hbmScreen, 0,
-		(UINT)bmpScreen.bmHeight,
-		lpbitmap,
-		(BITMAPINFO *)&bi, DIB_RGB_COLORS);
-
-	// A file is created, this is where we will save the screen capture.
-	HANDLE hFile = CreateFile("captureqwsx.bmp",
-		GENERIC_WRITE,
-		0,
-		NULL,
-		CREATE_ALWAYS,
-		FILE_ATTRIBUTE_NORMAL, NULL);   
-
-	// Add the size of the headers to the size of the bitmap to get the total file size
-	DWORD dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-
-	//Offset to where the actual bitmap bits start.
-	bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER); 
-
-	//Size of the file
-	bmfHeader.bfSize = dwSizeofDIB; 
-
-	//bfType must always be BM for Bitmaps
-	bmfHeader.bfType = 0x4D42; //BM   
-
-	DWORD dwBytesWritten = 0;
-	WriteFile(hFile, (LPSTR)&bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
-	WriteFile(hFile, (LPSTR)&bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
-	WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
-
-	//Unlock and Free the DIB from the heap
-	GlobalUnlock(hDIB);    
-	GlobalFree(hDIB);
-
-	//Close the handle for the file that was created
-	CloseHandle(hFile);
-
-	DeleteObject(hbmScreen);
-	DeleteObject(hdcMemDC);
-	ReleaseDC(NULL,hdcScreen);
-	ReleaseDC(hWnd,hdcWindow);
-
-	return 0;
-}
-
 //
 // FUNCTION: HideMagnifier()
 //
@@ -652,6 +540,21 @@ void HideMagnifier()
 		ShowWindow(hwndHost, SW_HIDE);
 	}
 	hideWindowTimeout = 0;
+}
+
+int drawRectangle(int x1, int y1, int width, int height, int c)
+{
+    HDC hdc = GetDC(NULL);
+    Graphics g(hdc);
+    int green = c*255;
+    int red = abs(green-255);
+    Pen pen(Color(255, red, green, 0), 10);
+
+    Rect rectangle(x1, y1, width, height);    
+    g.DrawRectangle( &pen, rectangle );
+    ReleaseDC(NULL, hdc);
+    ValidateRect(hwndMag, NULL);
+    return 1;
 }
 
 //

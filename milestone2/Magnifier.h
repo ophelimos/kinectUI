@@ -12,8 +12,13 @@
 
 #include <windows.h>
 #include <wincodec.h>
+#include <objidl.h>
+#include <gdiplus.h>
 #include <magnification.h>
 #include "SkeletalViewer.h"
+
+using namespace Gdiplus;
+#pragma comment (lib,"Gdiplus.lib")
 
 #define RESTOREDWINDOWSTYLES WS_SIZEBOX | WS_SYSMENU | WS_CLIPCHILDREN | WS_CAPTION | WS_MAXIMIZEBOX
 
@@ -49,11 +54,11 @@ LRESULT CALLBACK    HostWndProc(HWND, UINT, WPARAM, LPARAM);
 BOOL                UpdateLens();
 void CALLBACK       UpdateMagWindow(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
 void                GoFullScreen();
-int                 CaptureAnImage(HWND hwnd);
 void                ApplyLensRestrictions (RECT sourceRect);
 float               GetMagnificationFactor();
 RECT                GetSourceRect ();
 BOOL                isFullScreen = FALSE;
 void				HideMagnifier();
+int                 drawRectangle(int x1, int y1, int width, int height, int c);
 
 extern int distanceInMM;
