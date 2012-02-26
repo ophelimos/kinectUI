@@ -48,7 +48,7 @@ enum ProgramMode
 	KINECT_AND_MAGNIFIER
 };
 
-const ProgramMode mode = KINECT_AND_MAGNIFIER;
+const ProgramMode mode = MAGNIFIER_ONLY;
 
 //
 // FUNCTION: WinMain()
@@ -140,6 +140,18 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		{
 			isMagnifierOff = TRUE;
 			HideMagnifier();
+		}
+        else if (wParam == VK_F6)
+		{
+			drawRectangle (50,50,200,100,0);			
+		}
+        else if (wParam == VK_F7)
+		{
+			drawRectangle (100, 100, 300, 150, 1);
+		}
+        else if (wParam == VK_F8)
+		{
+			clearOverlay();
 		}
 
 	case WM_SYSCOMMAND: 
@@ -236,6 +248,27 @@ ATOM RegisterLensWindowClass(HINSTANCE hInstance)
 }
 
 //
+//  FUNCTION: RegisterLensWindowClass()
+//
+//  PURPOSE: Registers the window class for the window that contains the magnification control.
+//
+ATOM RegisterOverlayWindowClass(HINSTANCE hInstance)
+{
+	WNDCLASSEX wcex = {};
+
+	wcex.cbSize = sizeof(WNDCLASSEX); 
+	wcex.style          = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc    = HostWndProc;
+	wcex.hInstance      = hInstance;
+	wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
+	wcex.hbrBackground  = CreateSolidBrush(RGB(255, 255, 255));
+	wcex.lpszClassName  = OverlayClassName;
+
+	return RegisterClassEx(&wcex);
+}
+
+
+//
 // FUNCTION: UpdateMagnificationFactor()
 //
 // PURPOSE: Change the amount the window is magnified
@@ -274,6 +307,7 @@ BOOL SetupMagnifier(HINSTANCE hInst)
 	RegisterHostWindowClass(hInst);
 	RegisterViewfinderWindowClass(hInst);
 	RegisterLensWindowClass(hInst);
+    RegisterOverlayWindowClass(hInst);
 
 	hwndHost = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
 		WindowClassName, WindowTitle, 
@@ -296,10 +330,12 @@ BOOL SetupMagnifier(HINSTANCE hInst)
 	{
 		return FALSE;
 	}
+    
 
 	UpdateMagnificationFactor();
 	SetupViewfinder(hInst);
 	SetupLens(hInst);
+    SetupOverlay(hInst);
 	GoFullScreen();
 
 	HWND list[] = {hwndViewfinder, hwndLens};
@@ -365,7 +401,7 @@ void ApplyLensRestrictions (RECT sourceRect){
 BOOL SetupLens(HINSTANCE hInst)
 {       
 	ApplyLensRestrictions (GetSourceRect());
-
+    
 	hwndLens = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
 		LensClassName, LensWindowTitle, 
 		WS_VISIBLE | WS_POPUP | WS_BORDER | WS_THICKFRAME,
@@ -379,6 +415,38 @@ BOOL SetupLens(HINSTANCE hInst)
 
 	return TRUE;
 }
+
+//
+// FUNCTION: SetupOverlay
+//
+// PURPOSE: Creates the Gesture Overlay window
+//
+BOOL SetupOverlay(HINSTANCE hInst)
+{
+    int xRes = GetSystemMetrics(SM_CXSCREEN);
+	int yRes = GetSystemMetrics(SM_CYSCREEN);
+        
+	overlayWindowRect.top = 0;        	
+	overlayWindowRect.bottom = yRes;
+	overlayWindowRect.left = 0;
+	overlayWindowRect.right = xRes;
+
+	hwndOverlay = CreateWindowEx(WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT, 
+		OverlayClassName, OverlayWindowTitle, 
+		WS_VISIBLE | WS_POPUP,
+		overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom, NULL, NULL, hInst, NULL);
+
+	if (!hwndOverlay)
+	{
+		return FALSE;
+	}
+	SetLayeredWindowAttributes(hwndOverlay, 0, 180, LWA_ALPHA);  
+
+    ShowWindow(hwndOverlay, SW_HIDE);
+
+	return TRUE;
+}
+
 
 BOOL UpdateLens()
 {
@@ -542,18 +610,30 @@ void HideMagnifier()
 	hideWindowTimeout = 0;
 }
 
+void clearOverlay(){
+    Graphics g(hwndOverlay);    
+    SolidBrush brush(Color(255, 255, 255, 255));
+    
+    g.FillRectangle( &brush, overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom );        
+    ShowWindow(hwndOverlay, SW_HIDE);
+    isOverlayOff = TRUE;
+    return;
+}
+
 int drawRectangle(int x1, int y1, int width, int height, int c)
 {
-    HDC hdc = GetDC(NULL);
-    Graphics g(hdc);
+    if (isOverlayOff){
+        clearOverlay();
+        ShowWindow(hwndOverlay, SW_SHOW);
+        isOverlayOff = FALSE;
+    }
+    Graphics g(hwndOverlay);
     int green = c*255;
     int red = abs(green-255);
     Pen pen(Color(255, red, green, 0), 10);
 
     Rect rectangle(x1, y1, width, height);    
-    g.DrawRectangle( &pen, rectangle );
-    ReleaseDC(NULL, hdc);
-    ValidateRect(hwndMag, NULL);
+    g.DrawRectangle( &pen, rectangle );        
     return 1;
 }
 

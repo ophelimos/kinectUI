@@ -28,28 +28,35 @@ float               MagFactor;
 const TCHAR         WindowClassName[]= TEXT("MagnifierWindow");
 const TCHAR         ViewfinderClassName[]= TEXT("ViewfinderWindow");
 const TCHAR         LensClassName[]= TEXT("LensWindow");
+const TCHAR         OverlayClassName[]= TEXT("GestureOverlayWindow");
 const TCHAR         WindowTitle[]= TEXT("Screen Magnifier");
 const TCHAR         ViewWindowTitle[]= TEXT("Viewfinder");
 const TCHAR         LensWindowTitle[]= TEXT("Lens");
+const TCHAR         OverlayWindowTitle[]= TEXT("Overlay");
 const UINT          timerInterval = 16; // close to the refresh rate @60hz 16
 HWND                hwndMag;
 HWND                hwndViewfinder;
 HWND                hwndLens;
 HWND                hwndHost;
+HWND                hwndOverlay;
 RECT                magWindowRect;
 RECT                lensWindowRect;
 RECT                viewfinderWindowRect;
+RECT                overlayWindowRect;
 RECT                hostWindowRect;
 BOOL				isMagnifierOff = FALSE;
+BOOL                isOverlayOff = TRUE;
 int					hideWindowTimeout = 0;
 
 // Forward declarations.
 ATOM                RegisterHostWindowClass(HINSTANCE hInstance);
 ATOM                RegisterViewfinderWindowClass(HINSTANCE hInstance);
 ATOM                RegisterLensWindowClass(HINSTANCE hInstance);
+ATOM                RegisterOverlayWindowClass(HINSTANCE hInstance);
 BOOL                SetupMagnifier(HINSTANCE hinst);
 BOOL                SetupViewfinder(HINSTANCE hinst);
 BOOL                SetupLens(HINSTANCE hinst);
+BOOL                SetupOverlay(HINSTANCE hinst);
 LRESULT CALLBACK    HostWndProc(HWND, UINT, WPARAM, LPARAM);
 BOOL                UpdateLens();
 void CALLBACK       UpdateMagWindow(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
@@ -60,5 +67,6 @@ RECT                GetSourceRect ();
 BOOL                isFullScreen = FALSE;
 void				HideMagnifier();
 int                 drawRectangle(int x1, int y1, int width, int height, int c);
+void                clearOverlay();
 
 extern int distanceInMM;
