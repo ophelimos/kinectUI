@@ -53,7 +53,7 @@ MoveAndMagnifyHandler::~MoveAndMagnifyHandler(void)
 }
 
 // Short function to handle moving and magnifying every timer interval
-void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* lpParameter, BOOLEAN TimerOrWaitFired)
+void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN /*TimerOrWaitFired*/)
 {
 	// View skeletal viewer handler
 	// Stop us from immediately re-enabling after disabling

@@ -11,6 +11,7 @@ extern float magnifyAmount;
 void HideMagnifier();
 extern int hideWindowTimeout;
 extern float magnificationFloor;
+extern BOOL allowMagnifyGestures;
 
 GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 {
@@ -37,8 +38,8 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	Vector4 leftHandPoint;
 	Vector4 handPoint;
 	Vector4 spinePoint;
-	Vector4 rightShoulderPoint;
-	Vector4 leftShoulderPoint;
+	// Vector4 rightShoulderPoint;
+	// Vector4 leftShoulderPoint;
 	// These are derived points used for magnification and movement
 	Vector4 upPoint;
 	Vector4 downPoint;
@@ -66,12 +67,12 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	}
 
 	// If they make the "stop" gesture, turn off gesture recognition and magnification period
-	// In this case the "stop" gesture is hands _crossed_ and touching the shoulders
+
+	// Stop gesture is hands on head
 	rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
 	leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-	rightShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT];
-	leftShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT];
-	if (areClose(leftShoulderPoint, rightHandPoint, detectRange) && areClose(rightShoulderPoint, leftHandPoint, detectRange))
+	headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+	if (areClose3D(headPoint, rightHandPoint, detectRange) && areClose3D(headPoint, leftHandPoint, detectRange))
 	{
 		// Stop us from immediately re-enabling after disabling
 		if (hideWindowTimeout < 30)
@@ -86,6 +87,28 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			state->set(OFF);
 		}
 	}
+	
+	
+	// // In this case the "stop" gesture is hands _crossed_ and touching the shoulders
+	// rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+	// leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+	// rightShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT];
+	// leftShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT];
+	// if (areClose(leftShoulderPoint, rightHandPoint, detectRange) && areClose(rightShoulderPoint, leftHandPoint, detectRange))
+	// {
+	// 	// Stop us from immediately re-enabling after disabling
+	// 	if (hideWindowTimeout < 30)
+	// 	{
+	// 		hideWindowTimeout++;
+	// 	} 
+	// 	else
+	// 	{
+	// 		// Reset magnification value
+	// 		magnificationFloor = 0;
+	// 		HideMagnifier();
+	// 		state->set(OFF);
+	// 	}
+	// }
 
 	// If they make the "cancel" gesture, stop recognizing gestures
 	// Cancel gesture here is both hands touching.
@@ -158,18 +181,32 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
 			centerPoint.x -= centerOver;
 		}
-		if (areClose(spinePoint, handPoint, detectRange))
-		{
+
+		// Only allow user magnification if it's turned on
+		if (allowMagnifyGestures)
+		  {
+		    if (areClose(spinePoint, handPoint, detectRange))
+		      {
 			state->set(BODYCENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;
-		}
-		if (areClose(centerPoint, handPoint, detectRange))
-		{
+		      }
+		    if (areClose(centerPoint, handPoint, detectRange))
+		      {
 			state->set(MAGNIFYCENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;
-		}
+		      }
+		  }
+		else
+		  {
+		    if (areClose(centerPoint, handPoint, detectRange))
+		      {
+			state->set(MOVECENTER);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		      }
+		  }
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case BODYCENTER:
@@ -549,7 +586,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	}
 }
 
-// Check if two Vector4 objects are within a certain rectangular (switched to 2-d, since it's more intuititve) range of each other
+// Check if two Vector4 objects are within a certain 2-D rectangular range of each other
 bool GestureDetector::areClose(Vector4 &obj1, Vector4 &obj2, double range)
 {
 	//if ( 
@@ -570,6 +607,22 @@ bool GestureDetector::areClose(Vector4 &obj1, Vector4 &obj2, double range)
 	}
 
 	return false;
+}
+
+// Check if two Vector4 objects are within a certain 3-D rectangular range of each other
+// This is less intuitive, so default to 2D, but sometimes we do want things to be 3D
+bool GestureDetector::areClose3D(Vector4 &obj1, Vector4 &obj2, double range)
+{
+  if ( 
+  	(abs(obj1.x - obj2.x) < range)
+  	&& (abs(obj1.y - obj2.y) < range)
+  	&& (abs(obj1.z - obj2.z) < range)
+  	)
+  {
+  	return true;
+  }
+
+  return false;
 }
 
 // As usual, this is much uglier than it needs to be.  Blame Microsoft.

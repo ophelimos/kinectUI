@@ -38,8 +38,6 @@
 *************************************************************************************************/
 #include "Magnifier.h"
 
-float magnificationFloor;
-
 // Make it easier to pick what part of the program you want to run.
 enum ProgramMode
 {
@@ -49,6 +47,36 @@ enum ProgramMode
 };
 
 const ProgramMode mode = MAGNIFIER_ONLY;
+
+// Global variables and strings.
+HINSTANCE           hInst;
+float               MagFactor;
+const TCHAR         WindowClassName[]= TEXT("MagnifierWindow");
+const TCHAR         ViewfinderClassName[]= TEXT("ViewfinderWindow");
+const TCHAR         LensClassName[]= TEXT("LensWindow");
+const TCHAR         OverlayClassName[]= TEXT("GestureOverlayWindow");
+const TCHAR         WindowTitle[]= TEXT("Screen Magnifier");
+const TCHAR         ViewWindowTitle[]= TEXT("Viewfinder");
+const TCHAR         LensWindowTitle[]= TEXT("Lens");
+const TCHAR         OverlayWindowTitle[]= TEXT("Overlay");
+const UINT          timerInterval = 16; // close to the refresh rate @60hz 16
+HWND                hwndMag;
+HWND                hwndViewfinder;
+HWND                hwndLens;
+HWND                hwndHost;
+HWND                hwndOverlay;
+RECT                magWindowRect;
+RECT                lensWindowRect;
+RECT                viewfinderWindowRect;
+RECT                overlayWindowRect;
+RECT                hostWindowRect;
+BOOL                isMagnifierOff = FALSE;
+BOOL                isOverlayOff = TRUE;
+int                 hideWindowTimeout = 0;
+BOOL                allowMagnifyGestures = FALSE;
+float               magnificationFloor = 0.0f;
+int                 distanceInMM = 0;
+BOOL                isFullScreen = FALSE;
 
 //
 // FUNCTION: WinMain()
@@ -136,11 +164,6 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		{
 			GoFullScreen();
 		}
-		else if (wParam == VK_F5)
-		{
-			isMagnifierOff = TRUE;
-			HideMagnifier();
-		}
         else if (wParam == VK_F6)
 		{
 			drawRectangle (50,50,200,100,0);			
@@ -153,6 +176,18 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		{
 			clearOverlay();
 		}
+        else if (wParam == VK_F9) // Requested magnify gestures toggle
+	  {
+	    if (allowMagnifyGestures)
+	      {
+		allowMagnifyGestures = FALSE;
+	      }
+	    else
+	      {
+		allowMagnifyGestures = TRUE;
+	      }
+	  }
+		
 
 	case WM_SYSCOMMAND: 
 		if (GET_SC_WPARAM(wParam) == SC_MAXIMIZE) 
@@ -505,25 +540,20 @@ RECT GetSourceRect (){
 //
 void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/)
 {
-	if (isMagnifierOff)
+  // Stop us from immediately re-enabling after disabling
+  if (isMagnifierOff && hideWindowTimeout < 120)
+    {
+      hideWindowTimeout++;
+      return;
+    }
+  if (GetAsyncKeyState(VK_END))
+    {
+      HideMagnifier();
+      if (isMagnifierOff)
 	{
-		// Stop us from immediately re-enabling after disabling
-		if (hideWindowTimeout < 30)
-		{
-			hideWindowTimeout++;
-			return;
-		}
-		if (GetAsyncKeyState(VK_F5))
-		{
-			isMagnifierOff = FALSE;
-			HideMagnifier();
-		}
-		else
-		{
-			// Don't bother processing if magnification is off
-			return;
-		}
+	  return;
 	}
+    }
 	UpdateMagnificationFactor();
 	RECT sourceRect = GetSourceRect();
 	// Set the source rectangle for the magnifier control.
@@ -593,21 +623,23 @@ void GoFullScreen()
 //
 void HideMagnifier()
 {
-	int windowState = ShowWindow(hwndMag, SW_HIDE);
-	if (windowState == 0) // Previously hidden
-	{
-		ShowWindow(hwndMag, SW_SHOW);
-		ShowWindow(hwndViewfinder, SW_SHOW);
-		ShowWindow(hwndLens, SW_SHOW);
-		ShowWindow(hwndHost, SW_SHOW);
-	}
-	else  // Previously visible
-	{
-		ShowWindow(hwndViewfinder, SW_HIDE);
-		ShowWindow(hwndLens, SW_HIDE);
-		ShowWindow(hwndHost, SW_HIDE);
-	}
-	hideWindowTimeout = 0;
+  if (IsWindowVisible(hwndMag))
+    {
+      ShowWindow(hwndMag, SW_HIDE);
+      ShowWindow(hwndViewfinder, SW_HIDE);
+      ShowWindow(hwndLens, SW_HIDE);
+      ShowWindow(hwndHost, SW_HIDE);
+      isMagnifierOff = FALSE;
+    }
+  else
+    {
+      ShowWindow(hwndMag, SW_SHOW);
+      ShowWindow(hwndViewfinder, SW_SHOW);
+      ShowWindow(hwndLens, SW_SHOW);
+      ShowWindow(hwndHost, SW_SHOW);
+      isMagnifierOff = TRUE;
+    }
+  hideWindowTimeout = 0;
 }
 
 void clearOverlay(){

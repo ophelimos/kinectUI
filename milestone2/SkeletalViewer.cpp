@@ -35,7 +35,7 @@ extern int			hideWindowTimeout;
 
 GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
 
-int distanceInMM;
+extern int distanceInMM;
 
 DWORD WINAPI StartSkeletalViewer(LPVOID lpParam)
 {

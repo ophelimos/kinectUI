@@ -21,6 +21,7 @@
 extern int distanceInMM;
 extern int activeSkeleton;
 extern GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
+extern BOOL allowMagnifyGestures;
 
 static const COLORREF g_JointColorTable[NUI_SKELETON_POSITION_COUNT] = 
 {
@@ -636,14 +637,15 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 	if ((gestureDetectors[WhichSkeletonColor] != NULL) && (WhichSkeletonColor == activeSkeleton))
 	{
 		GestureDetector* gestureDetector = gestureDetectors[WhichSkeletonColor];
+		//// Cancel hitboxes not needed, since hands on head is both self-apparent and hitboxes could be confused with the salute hitboxes
 		// Always draw the 'cancel' hitboxes
-		HPEN hCancelPen;
-		hCancelPen = CreatePen(PS_DOT, 1, RGB(0,0,255));
-		hOldObj = SelectObject(m_SkeletonDC, hCancelPen);
-		DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], scaleX, scaleY);
-		DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], scaleX, scaleY);
-		SelectObject( m_SkeletonDC, hOldObj );
-		DeleteObject(hCancelPen);
+		// HPEN hCancelPen;
+		// hCancelPen = CreatePen(PS_DOT, 1, RGB(0,0,255));
+		// hOldObj = SelectObject(m_SkeletonDC, hCancelPen);
+		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], scaleX, scaleY);
+		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], scaleX, scaleY);
+		// SelectObject( m_SkeletonDC, hOldObj );
+		// DeleteObject(hCancelPen);
 
 		// Make a new pen for the gesture hitboxes
 		HPEN hGesturePen;
@@ -689,8 +691,15 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 			{
 				centerPoint.x -= centerOver;
 			}
-			DrawBox(spinePoint, scaleX, scaleY);			
-			DrawBox(centerPoint, scaleX, scaleY);
+			if (allowMagnifyGestures)
+			  {
+			    DrawBox(spinePoint, scaleX, scaleY);			
+			    DrawBox(centerPoint, scaleX, scaleY);
+			  }
+			else
+			  {
+			    DrawBox(centerPoint, scaleX, scaleY);
+			  }
 			break;
 		case BODYCENTER:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];

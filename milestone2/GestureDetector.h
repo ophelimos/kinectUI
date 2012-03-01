@@ -58,6 +58,7 @@ public:
 	long long getTimeIn100NSIntervals();
 	void moveCursor(Direction dir);
 	void GestureDetector::getDifference(Vector4 now, Vector4 prev, FLOAT& displacement_x, FLOAT& displacement_y);
+	bool GestureDetector::areClose3D(Vector4 &obj1, Vector4 &obj2, double range);
 
 	/* Necessary for debugging */
 	HWND hwnd;
