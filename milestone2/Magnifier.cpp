@@ -366,15 +366,14 @@ BOOL SetupMagnifier(HINSTANCE hInst)
 		return FALSE;
 	}
     
-
 	UpdateMagnificationFactor();
 	SetupViewfinder(hInst);
 	SetupLens(hInst);
     SetupOverlay(hInst);
 	GoFullScreen();
 
-	HWND list[] = {hwndViewfinder, hwndLens};
-	MagSetWindowFilterList(hwndMag, MW_FILTERMODE_EXCLUDE, 2, list);
+    HWND list[] = {hwndViewfinder, hwndLens, hwndOverlay};
+	MagSetWindowFilterList(hwndMag, MW_FILTERMODE_EXCLUDE, 3, list);
 
 	return UpdateMagnificationFactor();
 }
@@ -482,7 +481,6 @@ BOOL SetupOverlay(HINSTANCE hInst)
 	return TRUE;
 }
 
-
 BOOL UpdateLens()
 {
 	RECT source;
@@ -559,7 +557,8 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 	// Set the source rectangle for the magnifier control.
 	MagSetWindowSource(hwndMag, sourceRect);
         
-	UpdateLens();    
+	UpdateLens();
+   //UpdateOverlay();
     
 	// Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
 	SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, 
@@ -570,6 +569,10 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 	// Make lens topmost window. 
 	SetWindowPos(hwndLens, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
 		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );    
+    // Make lens topmost window. 
+	SetWindowPos(hwndOverlay, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
+		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );    
+
 
 	// Force redraw.
 	InvalidateRect(hwndMag, NULL, TRUE);   
@@ -648,15 +651,30 @@ void clearOverlay(){
     
     g.FillRectangle( &brush, overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom );        
     ShowWindow(hwndOverlay, SW_HIDE);
+    
     isOverlayOff = TRUE;
     return;
 }
 
-int drawRectangle(int x1, int y1, int width, int height, int c)
+void drawText(float x1, float y1, WCHAR string[])
+{
+    Graphics g(hwndOverlay);
+    FontFamily  fontFamily(L"Times New Roman");
+    Font        font(&fontFamily, 24, FontStyleRegular, UnitPixel);
+    PointF      pointF(x1, y1);
+    SolidBrush  solidBrush(Color(255, 0, 0, 0));
+
+    g.DrawString(string, -1, &font, pointF, &solidBrush);
+    
+    return;
+}
+
+void drawRectangle(int x1, int y1, int width, int height, int c)
 {
     if (isOverlayOff){
         clearOverlay();
         ShowWindow(hwndOverlay, SW_SHOW);
+        
         isOverlayOff = FALSE;
     }
     Graphics g(hwndOverlay);
@@ -666,7 +684,10 @@ int drawRectangle(int x1, int y1, int width, int height, int c)
 
     Rect rectangle(x1, y1, width, height);    
     g.DrawRectangle( &pen, rectangle );        
-    return 1;
+    
+    drawText (200, 200, L"HELLO WORLD");
+
+    return;
 }
 
 //

@@ -40,6 +40,6 @@ float               GetMagnificationFactor();
 RECT                GetSourceRect ();
 void		    HideMagnifier();
 int                 drawRectangle(int x1, int y1, int width, int height, int c);
+void                drawText(float x1, float y1, WCHAR string[]);
+void                drawRectangle(int x1, int y1, int width, int height, int c);
 void                clearOverlay();
-
-
