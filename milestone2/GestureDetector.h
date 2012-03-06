@@ -13,15 +13,15 @@
 #include "GestureState.h"
 
 /* Magic constants */
-const FLOAT detectRange = 0.15f;
+const FLOAT detectRange = 0.20f;
 // A little bit smaller, since otherwise accidental hits are too easy
 const FLOAT handsTogether = 0.1f;
 // 10000000 is about one second
-const long long timeout = 50000000;
+const long long timeout = 100000000;
 const FLOAT saluteOver = 0.25f;
 const FLOAT saluteUp = 0.15f;
 const FLOAT centerOver = 0.25f;
-const FLOAT directionRadius = 0.25f;
+const FLOAT directionRadius = 0.20f;
 /* const FLOAT magnifyOver = 0.5f; */
 /* const FLOAT moveDown = 0.2f; */
 //const LONG moveAmount = 50;
@@ -53,7 +53,7 @@ public:
 	int id;
 
 	/* Functions */
-	void detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame, int skeletonNum);
+	void detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame);
 	bool areClose(Vector4 &obj1, Vector4 &obj2, double range);
 	long long getTimeIn100NSIntervals();
 	void moveCursor(Direction dir);

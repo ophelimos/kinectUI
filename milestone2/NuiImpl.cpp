@@ -634,8 +634,9 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
     }
 
 	// Draw the gesture hitboxes
-	if ((gestureDetectors[WhichSkeletonColor] != NULL) && (WhichSkeletonColor == activeSkeleton))
+	if (gestureDetectors[WhichSkeletonColor] != NULL)
 	{
+		// This ensures the proper per-skeleton state.
 		GestureDetector* gestureDetector = gestureDetectors[WhichSkeletonColor];
 		//// Cancel hitboxes not needed, since hands on head is both self-apparent and hitboxes could be confused with the salute hitboxes
 		// Always draw the 'cancel' hitboxes
@@ -660,6 +661,7 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSke
 		// Vector4 movePoint;
 		Vector4 centerPoint;
 		Vector4 upPoint, downPoint, leftPoint, rightPoint;
+
 		switch (gestureDetector->state->state)
 		{
 		case OFF:
@@ -949,7 +951,7 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 				::PostMessageW(m_hWnd, WM_USER_UPDATE_USER, IDC_USER, i);
 			}
 			// Remember, gesture detectors are now per-skeleton, but we still only want to detect gestures for tracked skeletons
-			gestureDetectors[i]->detect(SkeletonFrame, prevFrame, i);
+			gestureDetectors[i]->detect(SkeletonFrame, prevFrame);
 
             bBlank = false;
         }

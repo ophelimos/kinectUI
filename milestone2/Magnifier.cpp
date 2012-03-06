@@ -46,7 +46,7 @@ enum ProgramMode
 	KINECT_AND_MAGNIFIER
 };
 
-const ProgramMode mode = MAGNIFIER_ONLY;
+const ProgramMode mode = KINECT_AND_MAGNIFIER;
 
 // Global variables and strings.
 HINSTANCE           hInst;
@@ -74,9 +74,12 @@ BOOL                isMagnifierOff = FALSE;
 BOOL                isOverlayOff = TRUE;
 int                 hideWindowTimeout = 0;
 BOOL                allowMagnifyGestures = FALSE;
+BOOL				showOverlays = TRUE;
 float               magnificationFloor = 0.0f;
 int                 distanceInMM = 0;
 BOOL                isFullScreen = FALSE;
+int					xRes = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+int					yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
 //
 // FUNCTION: WinMain()
@@ -166,11 +169,27 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		}
         else if (wParam == VK_F6)
 		{
-			drawRectangle (50,50,200,100,0);			
+			int size = 200;
+			drawRectangle ((xRes/2) - (size/2), (yRes/2) - (size/2), size, size, 0);
+			drawRectangle (50,50,200,100,0);
+			drawText (200, 200, L"HELLO WORLD");
 		}
         else if (wParam == VK_F7)
 		{
 			drawRectangle (100, 100, 300, 150, 1);
+			int sizeSmall = 100;
+			int sizeLarge = 300;
+			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
+
+			// Horiz
+			drawRectangle ((xRes*3/4) - (sizeSmall*3/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
+			drawRectangle ((xRes*3/4) + (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
+
+			// Vert
+			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
+			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
+
+			drawRectangle ((xRes*3/4) - (sizeLarge/2), (yRes/2) - (sizeLarge/2), sizeLarge, sizeLarge, 1);
 		}
         else if (wParam == VK_F8)
 		{
@@ -669,7 +688,7 @@ void drawText(float x1, float y1, WCHAR string[])
     return;
 }
 
-void drawRectangle(int x1, int y1, int width, int height, int c)
+void drawRectangle(int ulx, int uly, int width, int height, int c)
 {
     if (isOverlayOff){
         clearOverlay();
@@ -682,10 +701,10 @@ void drawRectangle(int x1, int y1, int width, int height, int c)
     int red = abs(green-255);
     Pen pen(Color(255, red, green, 0), 10);
 
-    Rect rectangle(x1, y1, width, height);    
+    Rect rectangle(ulx, uly, width, height);    
     g.DrawRectangle( &pen, rectangle );        
     
-    drawText (200, 200, L"HELLO WORLD");
+    //drawText (200, 200, L"HELLO WORLD");
 
     return;
 }

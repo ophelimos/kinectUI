@@ -2,13 +2,12 @@
 #include "SkeletalViewer.h"
 #include <cmath>
 #include <winuser.h>
+#include "Magnifier.h"
 
 extern int activeSkeleton;
 extern LONG moveAmount_x;
 extern LONG moveAmount_y;
 extern float magnifyAmount;
-// Including Magnifier.h is a *bad* idea, since it's not namespaced away in a class.  That really should be done at some point.
-void HideMagnifier();
 extern int hideWindowTimeout;
 extern float magnificationFloor;
 extern BOOL allowMagnifyGestures;
@@ -27,10 +26,10 @@ GestureDetector::~GestureDetector(void)
 	delete state;
 }
 
-void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame, int skeletonNum)
+void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame)
 {
-	NUI_SKELETON_DATA SkeletonData = SkeletonFrame.SkeletonData[skeletonNum];
-	NUI_SKELETON_DATA prevSkeletonData = prevFrame.SkeletonData[skeletonNum];
+	NUI_SKELETON_DATA SkeletonData = SkeletonFrame.SkeletonData[id];
+	NUI_SKELETON_DATA prevSkeletonData = prevFrame.SkeletonData[id];
 	/*** The compiler does not like initializing variables within case statements ***/
 	// Temporary variables for actual body part points
 	Vector4 headPoint;
@@ -53,10 +52,14 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	// Do as much as we can before entering the state machine, because long states are confusing
 
 	// Most states are only applicable if we're the active skeleton
-	if ( (state->state != OFF || state->state != SALUTE1) && id != activeSkeleton)
+	if (id != activeSkeleton)
 	{
-		state->set(OFF);
-		return;
+		// Setting an already OFF state to OFF won't cause issues.
+		if (state->state != SALUTE1)
+		{
+			// Adding a 'return' here will prevent anyone from stealing focus while a gesture is happening
+			state->set(OFF);
+		}
 	}
 
 	// Timeout any state other than OFF
@@ -162,7 +165,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			//MessageBox(NULL, "Salute detected", "Gesture Detection", NULL);
 			// Change the active user
 			// This is a race condition, but what it's doing is also inherently one
-			activeSkeleton = skeletonNum;
+			activeSkeleton = id;
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}

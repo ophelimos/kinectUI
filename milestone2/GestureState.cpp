@@ -98,15 +98,19 @@ void GestureState::updateDebug()
 		statename = _strdup("UNKNOWN");
 	}
 
-	// If this is the active skeleton, print its state
+	// Print state
+	// I want to pass a char*.  The function wants an int*.  Solve the problem by casting.
+	// Note, the other uses are casting an int* to an int anyway, so this isn't anything particularly out of the ordinary
+	void* tmp = (void*)statename;
+	LONG_PTR longptr = (LONG_PTR) tmp;
+	// Actually post the message to the output
 	if (id == activeSkeleton)
 	{
-		// I want to pass a char*.  The function wants an int*.  Solve the problem by casting.
-		// Note, the other uses are casting an int* to an int anyway, so this isn't anything particularly out of the ordinary
-		void* tmp = (void*)statename;
-		LONG_PTR longptr = (LONG_PTR) tmp;
-		// Actually post the message to the output
 		::PostMessageW(hwnd, WM_USER_UPDATE_STATE, IDC_STATE, longptr);
+	}
+	else
+	{
+		::PostMessageW(hwnd, WM_USER_UPDATE_STATE, IDC_STATE2, longptr);
 	}
 
 	// Delete the old string, keep the new one
