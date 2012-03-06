@@ -11,6 +11,7 @@ extern float magnifyAmount;
 extern int hideWindowTimeout;
 extern float magnificationFloor;
 extern BOOL allowMagnifyGestures;
+extern BOOL showOverlays;
 
 GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 {
@@ -255,8 +256,11 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		upPoint.y += directionRadius;
 		if (areClose(upPoint, handPoint, detectRange))
 		{
-			state->set(MOVE);
-			moveAmount_y += 500*displacement_y;
+			state->set(MOVEUP);
+			if (displacement_y < 0)
+			{
+				moveAmount_y += 500*displacement_y;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
@@ -264,8 +268,11 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		downPoint.y -= directionRadius;
 		if (areClose(downPoint, handPoint, detectRange))
 		{
-			state->set(MOVE);
-			moveAmount_y += 500*displacement_y;
+			state->set(MOVEDOWN);
+			if (displacement_y > 0)
+			{
+				moveAmount_y += 500*displacement_y;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
@@ -273,8 +280,11 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		rightPoint.x += directionRadius;
 		if (areClose(rightPoint, handPoint, detectRange))
 		{
-			state->set(MOVE);
-			moveAmount_x -= 500*displacement_x;
+			state->set(MOVERIGHT);
+			if (displacement_x > 0)
+			{
+				moveAmount_x += 500*displacement_x;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
@@ -282,25 +292,45 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		leftPoint.x -= directionRadius;
 		if (areClose(leftPoint, handPoint, detectRange))
 		{
-			state->set(MOVE);
-			moveAmount_x -= 500*displacement_x;
+			state->set(MOVELEFT);
+			if (displacement_x < 0)
+			{
+				moveAmount_x += 500*displacement_x;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
-	case MOVE:
+	case MOVEUP:
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
 		if (hand == RIGHT)
 		{
 			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
 			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
 		}
 		else
 		{
 			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
 			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Specific direction
+		upPoint = centerPoint;
+		upPoint.y += directionRadius;
+		if (areClose(upPoint, handPoint, detectRange))
+		{
+			state->set(MOVEUP);
+			if (displacement_y < 0)
+			{
+				moveAmount_y += 500*displacement_y;
+			}
+			startTime = getTimeIn100NSIntervals();
+			return;
 		}
 		// Back to MOVECENTER
 		if (areClose(centerPoint, handPoint, detectRange))
@@ -311,6 +341,145 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
+	case MOVEDOWN:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Specific direction
+		downPoint = centerPoint;
+		downPoint.y -= directionRadius;
+		if (areClose(downPoint, handPoint, detectRange))
+		{
+			state->set(MOVEDOWN);
+			if (displacement_y > 0)
+			{
+				moveAmount_y += 500*displacement_y;
+			}
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Back to MOVECENTER
+		if (areClose(centerPoint, handPoint, detectRange))
+		{
+			state->set(MOVECENTER);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Otherwise, keep looking (until the timeout)
+		break;
+	case MOVERIGHT:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Specific direction
+		rightPoint = centerPoint;
+		rightPoint.x += directionRadius;
+		if (areClose(rightPoint, handPoint, detectRange))
+		{
+			state->set(MOVERIGHT);
+			if (displacement_x > 0)
+			{
+				moveAmount_x += 500*displacement_x;
+			}
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Back to MOVECENTER
+		if (areClose(centerPoint, handPoint, detectRange))
+		{
+			state->set(MOVECENTER);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Otherwise, keep looking (until the timeout)
+		break;
+	case MOVELEFT:
+		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		centerPoint = spinePoint;
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			centerPoint.x += centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			centerPoint.x -= centerOver;
+			// Add velocity
+			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
+		}
+		// Specific direction
+		leftPoint = centerPoint;
+		leftPoint.x -= directionRadius;
+		if (areClose(leftPoint, handPoint, detectRange))
+		{
+			state->set(MOVELEFT);
+			if (displacement_x < 0)
+			{
+				moveAmount_x += 500*displacement_x;
+			}
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Back to MOVECENTER
+		if (areClose(centerPoint, handPoint, detectRange))
+		{
+			state->set(MOVECENTER);
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		// Otherwise, keep looking (until the timeout)
+		break;
+	// case MOVE:
+	// 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+	// 	centerPoint = spinePoint;
+	// 	if (hand == RIGHT)
+	// 	{
+	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+	// 		centerPoint.x += centerOver;
+	// 	}
+	// 	else
+	// 	{
+	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+	// 		centerPoint.x -= centerOver;
+	// 	}
+	// 	// Back to MOVECENTER
+	// 	if (areClose(centerPoint, handPoint, detectRange))
+	// 	{
+	// 		state->set(MOVECENTER);
+	// 		startTime = getTimeIn100NSIntervals();
+	// 		return;
+	// 	}
+	// 	// Otherwise, keep looking (until the timeout)
+	// 	break;
 	case MAGNIFYCENTER:
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;

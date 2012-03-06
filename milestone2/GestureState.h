@@ -14,7 +14,10 @@ enum GestureStateEnum {
 	MAGNIFYDOWN,
 	MAGNIFYLEFT,
 	MAGNIFYRIGHT,
-	MOVE,
+	MOVERIGHT,
+	MOVELEFT,
+	MOVEUP,
+	MOVEDOWN,
 	MOVECENTER,
 	/* add more as necessary */
 };
