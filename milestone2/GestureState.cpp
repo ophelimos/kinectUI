@@ -2,6 +2,7 @@
 #include "SkeletalViewer.h"
 #include "resource.h"
 #include <string.h>
+#include "Magnifier.h"
 
 extern int activeSkeleton;
 

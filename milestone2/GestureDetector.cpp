@@ -12,6 +12,8 @@ extern int hideWindowTimeout;
 extern float magnificationFloor;
 extern BOOL allowMagnifyGestures;
 extern BOOL showOverlays;
+extern int xRes;
+extern int yRes;
 
 GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 {
@@ -88,6 +90,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			// Reset magnification value
 			magnificationFloor = 0;
 			HideMagnifier();
+			clearOverlay();
 			state->set(OFF);
 		}
 	}
@@ -118,6 +121,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	// Cancel gesture here is both hands touching.
 	if (areClose(leftHandPoint, rightHandPoint, handsTogether))
 	{
+		clearOverlay();
 		state->set(OFF);
 	}
 
@@ -161,6 +165,25 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 
 		if (areClose(headPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				if (allowMagnifyGestures)
+				{
+					if (hand == RIGHT)
+					{
+						drawRectangle ((xRes*3/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+					}
+					else
+					{
+						drawRectangle ((xRes*1/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+					}
+					drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+				}
+				else
+				{
+					drawRectangle ((xRes*3/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+				}
+			}
 			state->set(SALUTE2);
 			// Right now, an alert to let me know gesture tracking is working
 			//MessageBox(NULL, "Salute detected", "Gesture Detection", NULL);
@@ -188,29 +211,48 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 
 		// Only allow user magnification if it's turned on
 		if (allowMagnifyGestures)
-		  {
-		    if (areClose(spinePoint, handPoint, detectRange))
-		      {
-			state->set(BODYCENTER);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		      }
-		    if (areClose(centerPoint, handPoint, detectRange))
-		      {
-			state->set(MAGNIFYCENTER);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		      }
-		  }
+		{
+			if (areClose(spinePoint, handPoint, detectRange))
+			{
+				if (showOverlays)
+				{
+					drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
+				}
+				state->set(BODYCENTER);
+				startTime = getTimeIn100NSIntervals();
+				return;
+			}
+			if (areClose(centerPoint, handPoint, detectRange))
+			{
+				if (showOverlays)
+				{
+					clearOverlay();
+				}
+				state->set(MAGNIFYCENTER);
+				startTime = getTimeIn100NSIntervals();
+				return;
+			}
+		}
 		else
-		  {
-		    if (areClose(centerPoint, handPoint, detectRange))
-		      {
-			state->set(MOVECENTER);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		      }
-		  }
+		{
+			if (areClose(centerPoint, handPoint, detectRange))
+			{
+				if (showOverlays)
+				{
+					// Center
+					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+					// Vert
+					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+					// Horiz
+					drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+					drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				}
+				state->set(MOVECENTER);
+				startTime = getTimeIn100NSIntervals();
+				return;
+			}
+		}
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case BODYCENTER:
@@ -228,6 +270,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		}
 		if (areClose(centerPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				clearOverlay();
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVECENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;
@@ -256,6 +310,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		upPoint.y += directionRadius;
 		if (areClose(upPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVEUP);
 			if (displacement_y < 0)
 			{
@@ -268,6 +333,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		downPoint.y -= directionRadius;
 		if (areClose(downPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVEDOWN);
 			if (displacement_y > 0)
 			{
@@ -280,6 +356,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		rightPoint.x += directionRadius;
 		if (areClose(rightPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+			}
 			state->set(MOVERIGHT);
 			if (displacement_x > 0)
 			{
@@ -292,6 +379,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		leftPoint.x -= directionRadius;
 		if (areClose(leftPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVELEFT);
 			if (displacement_x < 0)
 			{
@@ -324,6 +422,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		upPoint.y += directionRadius;
 		if (areClose(upPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVEUP);
 			if (displacement_y < 0)
 			{
@@ -335,6 +444,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Back to MOVECENTER
 		if (areClose(centerPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				clearOverlay();
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVECENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;
@@ -363,6 +484,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		downPoint.y -= directionRadius;
 		if (areClose(downPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVEDOWN);
 			if (displacement_y > 0)
 			{
@@ -374,6 +506,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Back to MOVECENTER
 		if (areClose(centerPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				clearOverlay();
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVECENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;
@@ -402,6 +546,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		rightPoint.x += directionRadius;
 		if (areClose(rightPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+			}
 			state->set(MOVERIGHT);
 			if (displacement_x > 0)
 			{
@@ -413,6 +568,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Back to MOVECENTER
 		if (areClose(centerPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				clearOverlay();
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVECENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;
@@ -441,6 +608,17 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		leftPoint.x -= directionRadius;
 		if (areClose(leftPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVELEFT);
 			if (displacement_x < 0)
 			{
@@ -452,6 +630,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Back to MOVECENTER
 		if (areClose(centerPoint, handPoint, detectRange))
 		{
+			if (showOverlays)
+			{
+				clearOverlay();
+				// Center
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+				// Vert
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+				// Horiz
+				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			}
 			state->set(MOVECENTER);
 			startTime = getTimeIn100NSIntervals();
 			return;

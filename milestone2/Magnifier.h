@@ -8,6 +8,7 @@
 #pragma once
 
 // Ensure that the following definition is in effect before winuser.h is included.
+// This ensures that WM_INPUT definitions can be used.
 #define _WIN32_WINNT 0x0501    
 
 #include <windows.h>

@@ -95,7 +95,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	{
 		StartSkeletalViewer(hInstance);
 	} 
-	else if (mode == KINECT_AND_MAGNIFIER)
+	else if (mode != MAGNIFIER_ONLY)
 	{
 		// Start up a separate thread that handles the Kinect stuff
 		// StartSkeletalViewer(hInstance);
@@ -176,20 +176,20 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		}
         else if (wParam == VK_F7)
 		{
-			drawRectangle (100, 100, 300, 150, 1);
 			int sizeSmall = 100;
-			int sizeLarge = 300;
+
+			int overlayCircleRadius = 150;
+			
+			// Center
 			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
-
-			// Horiz
-			drawRectangle ((xRes*3/4) - (sizeSmall*3/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
-			drawRectangle ((xRes*3/4) + (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
-
 			// Vert
-			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
-			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
+			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2) - overlayCircleRadius, sizeSmall, sizeSmall, 1);
+			drawRectangle ((xRes*3/4) - (sizeSmall/2), (yRes/2) - (sizeSmall/2) + overlayCircleRadius, sizeSmall, sizeSmall, 1);
+			// Horiz
+			drawRectangle ((xRes*3/4) - (sizeSmall/2) - overlayCircleRadius, (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
+			drawRectangle ((xRes*3/4) - (sizeSmall/2) + overlayCircleRadius, (yRes/2) - (sizeSmall/2), sizeSmall, sizeSmall, 1);
 
-			drawRectangle ((xRes*3/4) - (sizeLarge/2), (yRes/2) - (sizeLarge/2), sizeLarge, sizeLarge, 1);
+			// drawRectangle ((xRes*3/4) - (sizeLarge/2), (yRes/2) - (sizeLarge/2), sizeLarge, sizeLarge, 1);
 		}
         else if (wParam == VK_F8)
 		{
@@ -664,15 +664,20 @@ void HideMagnifier()
   hideWindowTimeout = 0;
 }
 
-void clearOverlay(){
-    Graphics g(hwndOverlay);    
-    SolidBrush brush(Color(255, 255, 255, 255));
+void clearOverlay()
+{
+	if (IsWindowVisible(hwndOverlay))
+	{
+		Graphics g(hwndOverlay);    
+		SolidBrush brush(Color(255, 255, 255, 255));
     
-    g.FillRectangle( &brush, overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom );        
-    ShowWindow(hwndOverlay, SW_HIDE);
+		g.FillRectangle( &brush, overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom );        
+		ShowWindow(hwndOverlay, SW_HIDE);
     
-    isOverlayOff = TRUE;
-    return;
+		isOverlayOff = TRUE;
+	}
+
+	return;
 }
 
 void drawText(float x1, float y1, WCHAR string[])
