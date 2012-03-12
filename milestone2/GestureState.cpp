@@ -11,8 +11,8 @@ GestureState::GestureState(HWND assocHwnd, int userId)
 	state = OFF;
 	hwnd = assocHwnd;
 	name = NULL;
-	updateDebug();
 	id = userId;
+	updateDebug();
 }
 
 GestureState::~GestureState(void)

@@ -9,7 +9,7 @@
 
 #pragma once
 #include <windows.h>
-#include "MSR_NuiApi.h"
+#include "NuiApi.h"
 #include "GestureState.h"
 
 /* Magic constants */

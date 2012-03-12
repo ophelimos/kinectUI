@@ -1,43 +1,58 @@
-/************************************************************************
-*                                                                       *
-*   device.h -- Manages the Direct3D device                             *
-*                                                                       *
-* Copyright (c) Microsoft Corp. All rights reserved.                    *
-*                                                                       *
-* This code is licensed under the terms of the                          *
-* Microsoft Kinect for Windows SDK (Beta)                               *
-* License Agreement: http://kinectforwindows.org/KinectSDK-ToU          *
-*                                                                       *
-************************************************************************/
+//------------------------------------------------------------------------------
+// <copyright file="DrawDevice.h" company="Microsoft">
+//     Copyright (c) Microsoft Corporation.  All rights reserved.
+// </copyright>
+//------------------------------------------------------------------------------
+
+// Manages the drawing of bitmap data
 
 #pragma once
 
-#include <d3d9.h>
+#include <d2d1.h>
+#include <d2d1helper.h>
+#include <dwrite.h>
 
 // DrawDevice class
 
 class DrawDevice
 {
 private:
-    HWND                    m_hwnd;
-
-    IDirect3D9              *m_pD3D;
-    IDirect3DDevice9        *m_pDevice;
-    IDirect3DSwapChain9     *m_pSwapChain;
+    HWND                     m_hwnd;
 
     // Format information
-    UINT                    m_height;
-    LONG                    m_lDefaultStride;
-    RECT                    m_rcDest;       // Destination rectangle
+    UINT                     m_sourceHeight;
+    UINT                     m_sourceWidth;
+    LONG                     m_stride;
+    
+    RECT                     m_rectDest;         // Destination rectangle
+    D2D1_RECT_U              m_d2dRectDest;      // Direct2D Destination rectangle
+
+     // Direct2D 
+    ID2D1Factory *           m_pD2DFactory;
+    ID2D1HwndRenderTarget *  m_pRenderTarget;
+    ID2D1Bitmap *            m_pBitmap;
 
 public:
     DrawDevice();
     virtual ~DrawDevice();
 
-    // Implied bits per pixel is 32
-    HRESULT SetVideoType( int Width, int Height, int Stride );
-    HRESULT DrawFrame( BYTE * pBits );
+    HRESULT EnsureResources( );
+    void DiscardResources( );
 
-    HRESULT CreateDevice(HWND hwnd);
-    void    DestroyDevice();
+    // Implied bits per pixel is 32
+    bool Initialize( HWND hwnd, ID2D1Factory * pD2DFactory, int sourceWidth, int sourceHeight, int Stride );
+
+    // Draw a 32 bit per pixel image of previously specified width and height to the associated hwnd
+    bool Draw( BYTE * pBits, unsigned long cbBits );
 };
+
+// Safe release for interfaces
+template<class Interface>
+inline void SafeRelease( Interface *& pInterfaceToRelease )
+{
+    if ( pInterfaceToRelease != NULL )
+    {
+        pInterfaceToRelease->Release();
+        pInterfaceToRelease = NULL;
+    }
+}

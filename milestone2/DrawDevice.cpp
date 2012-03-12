@@ -1,166 +1,125 @@
-/************************************************************************
-*                                                                       *
-*   device.cpp -- Manages the Direct3D device                           *
-*                                                                       *
-* Copyright (c) Microsoft Corp. All rights reserved.                    *
-*                                                                       *
-* This code is licensed under the terms of the                          *
-* Microsoft Kinect for Windows SDK (Beta)                               *
-* License Agreement: http://kinectforwindows.org/KinectSDK-ToU          *
-*                                                                       *
-************************************************************************/
+//------------------------------------------------------------------------------
+// <copyright file="DrawDevice.cpp" company="Microsoft">
+//     Copyright (c) Microsoft Corporation.  All rights reserved.
+// </copyright>
+//------------------------------------------------------------------------------
+
+// Manages the drawing of bitmap data
 
 #include "stdafx.h"
 #include "DrawDevice.h"
 
-const DWORD NUM_BACK_BUFFERS = 2;
-
-inline LONG Width(const RECT& r)
+inline LONG Width( const RECT& r )
 {
     return r.right - r.left;
 }
 
-inline LONG Height(const RECT& r)
+inline LONG Height( const RECT& r )
 {
     return r.bottom - r.top;
 }
 
-
 //-------------------------------------------------------------------
 // Constructor
 //-------------------------------------------------------------------
-
 DrawDevice::DrawDevice() : 
-    m_hwnd(NULL),
-    m_pD3D(NULL),
-    m_pDevice(NULL),
-    m_pSwapChain(NULL),
-    m_height(0),
-    m_lDefaultStride(0)
+    m_hwnd(0),
+    m_sourceWidth(0),
+    m_sourceHeight(0),
+    m_stride(0),
+    m_pD2DFactory(NULL), 
+    m_pRenderTarget(NULL),
+    m_pBitmap(0)
 {
 }
-
 
 //-------------------------------------------------------------------
 // Destructor
 //-------------------------------------------------------------------
-
 DrawDevice::~DrawDevice()
 {
-    DestroyDevice();
+    DiscardResources();
+    SafeRelease(m_pD2DFactory);
 }
 
 //-------------------------------------------------------------------
-// CreateDevice
+// EnsureResources
 //
-// Create the Direct3D device.
+// Ensure necessary Direct2d resources are created
 //-------------------------------------------------------------------
-
-HRESULT DrawDevice::CreateDevice(HWND hwnd)
+HRESULT DrawDevice::EnsureResources()
 {
-    if (m_pDevice)
-    {
-        return S_OK;
-    }
+    HRESULT hr = S_OK;
 
-    // Create the Direct3D object.
-    if (m_pD3D == NULL)
+    if ( !m_pRenderTarget )
     {
-        m_pD3D = Direct3DCreate9(D3D_SDK_VERSION);
+        D2D1_SIZE_U size = D2D1::SizeU( m_sourceWidth, m_sourceHeight );
 
-        if (m_pD3D == NULL)
+        D2D1_RENDER_TARGET_PROPERTIES rtProps = D2D1::RenderTargetProperties();
+        rtProps.pixelFormat = D2D1::PixelFormat( DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE);
+        rtProps.usage = D2D1_RENDER_TARGET_USAGE_GDI_COMPATIBLE;
+
+        // Create a Hwnd render target, in order to render to the window set in initialize
+        hr = m_pD2DFactory->CreateHwndRenderTarget(
+            rtProps,
+            D2D1::HwndRenderTargetProperties(m_hwnd, size),
+            &m_pRenderTarget
+            );
+
+        if ( FAILED( hr ) )
         {
-            return E_FAIL;
+            return hr;
+        }
+
+        // Create a bitmap that we can copy image data into and then render to the target
+        hr = m_pRenderTarget->CreateBitmap(
+            D2D1::SizeU( m_sourceWidth, m_sourceHeight ), 
+            D2D1::BitmapProperties( D2D1::PixelFormat( DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE) ),
+            &m_pBitmap 
+            );
+
+        if ( FAILED( hr ) )
+        {
+            SafeRelease( m_pRenderTarget );
+            return hr;
         }
     }
 
-
-    HRESULT hr = S_OK;
-    D3DPRESENT_PARAMETERS pp = { 0 };
-    D3DDISPLAYMODE mode = { 0 };
-
-    hr = m_pD3D->GetAdapterDisplayMode(
-        D3DADAPTER_DEFAULT, 
-        &mode
-        );
-
-    if (FAILED(hr)) { goto done; }
-
-    hr = m_pD3D->CheckDeviceType(
-        D3DADAPTER_DEFAULT,
-        D3DDEVTYPE_HAL,
-        mode.Format,
-        D3DFMT_X8R8G8B8,
-        TRUE    // windowed
-        );
-
-    if (FAILED(hr)) { goto done; }
-
-    pp.BackBufferFormat = D3DFMT_X8R8G8B8;
-    pp.SwapEffect = D3DSWAPEFFECT_COPY;
-    pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;  
-    pp.Windowed = TRUE;
-    pp.hDeviceWindow = hwnd;
-
-    hr = m_pD3D->CreateDevice(
-        D3DADAPTER_DEFAULT,
-        D3DDEVTYPE_HAL,
-        hwnd,
-        D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
-        &pp,
-        &m_pDevice
-        );
-
-    if (FAILED(hr)) { goto done; }
-
-    m_hwnd = hwnd;
-
-done:
     return hr;
 }
 
 //-------------------------------------------------------------------
-// SetVideoType
+// DiscardResources
 //
-// Set the video format.  
+// Dispose Direct2d resources 
 //-------------------------------------------------------------------
-
-HRESULT DrawDevice::SetVideoType( int Width, int Height, int Stride )
+void DrawDevice::DiscardResources( )
 {
-    HRESULT hr = S_OK;
-    D3DPRESENT_PARAMETERS pp = { 0 };
+    SafeRelease(m_pRenderTarget);
+    SafeRelease(m_pBitmap);
+}
 
-    // Get the frame size.
-    m_lDefaultStride = Stride;
+//-------------------------------------------------------------------
+// Initialize
+//
+// Set the window to draw to, video format, etc.
+//-------------------------------------------------------------------
+bool DrawDevice::Initialize( HWND hwnd, ID2D1Factory * pD2DFactory, int sourceWidth, int sourceHeight, int Stride )
+{
+    m_hwnd = hwnd;
 
-    // Create Direct3D swap chain.
-	if(m_pSwapChain!=NULL)
-	{
-		m_pSwapChain->Release( );
-		m_pSwapChain=NULL;
-	}
+    // One factory for the entire application so save a pointer here
+    m_pD2DFactory = pD2DFactory;
 
-    pp.BackBufferWidth  = Width;
-    pp.BackBufferHeight = m_height = Height;
-    pp.Windowed = TRUE;
-    pp.SwapEffect = D3DSWAPEFFECT_FLIP;
-    pp.hDeviceWindow = m_hwnd;
-    pp.BackBufferFormat = D3DFMT_X8R8G8B8;
-    pp.Flags = 
-        D3DPRESENTFLAG_VIDEO | D3DPRESENTFLAG_DEVICECLIP |
-        D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
-    pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-    pp.BackBufferCount = NUM_BACK_BUFFERS;
+    m_pD2DFactory->AddRef( );
 
-    hr = m_pDevice->CreateAdditionalSwapChain(&pp, &m_pSwapChain);
-    if (FAILED(hr)) { goto done; }
+    // Get the frame size
+    m_stride = Stride;
 
-    // Update the destination rectangle for the correct
-    // aspect ratio.
-    GetClientRect(m_hwnd, &m_rcDest);
-
-done:
-    return hr;
+    m_sourceWidth = sourceWidth;
+    m_sourceHeight = sourceHeight;
+    
+    return true;
 }
 
 //-------------------------------------------------------------------
@@ -168,101 +127,45 @@ done:
 //
 // Draw the video frame.
 //-------------------------------------------------------------------
-
-HRESULT DrawDevice::DrawFrame( BYTE * pBits )
+bool DrawDevice::Draw( BYTE * pBits, unsigned long cbBits )
 {
-    HRESULT hr = S_OK;
-    D3DLOCKED_RECT lr;
-
-    IDirect3DSurface9 *pSurf = NULL;
-    IDirect3DSurface9 *pBB = NULL;
-
-    if (m_pDevice == NULL || m_pSwapChain == NULL)
+    // incorrectly sized image data passed in
+    if ( cbBits < ((m_sourceHeight - 1) * m_stride) + (m_sourceWidth * 4) )
     {
-        return S_OK;
+        return false;
     }
 
-    // Get the swap-chain surface.
-    hr = m_pSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &pSurf);
-    if (FAILED(hr)) { goto done; }
+    // create the resources for this draw device
+    // they will be recreated if previously lost
+    HRESULT hr = EnsureResources( );
 
-    // Lock the swap-chain surface.
-    hr = pSurf->LockRect(&lr, NULL, D3DLOCK_NOSYSLOCK );
-    if (FAILED(hr)) { goto done; }
-
-    // Convert the frame. This also copies it to the Direct3D surface.
-
-    BYTE * pDst = (BYTE*) lr.pBits;
-    BYTE * pSrc = pBits;
-
-    for( int y = 0 ; y < (int) m_height ; y++ )
+    if ( FAILED( hr ) )
     {
-        memcpy( pDst, pSrc, m_lDefaultStride );
-        pDst += lr.Pitch;
-        pSrc += m_lDefaultStride;
+        return false;
+    }
+    
+    // Copy the image that was passed in into the direct2d bitmap
+    hr = m_pBitmap->CopyFromMemory( NULL, pBits, m_stride );
+
+    if ( FAILED( hr ) )
+    {
+        return false;
+    }
+       
+    m_pRenderTarget->BeginDraw();
+
+    // Draw the bitmap stretched to the size of the window
+    m_pRenderTarget->DrawBitmap( m_pBitmap );
+            
+    hr = m_pRenderTarget->EndDraw();
+
+    // Device lost, need to recreate the render target
+    // We'll dispose it now and retry drawing
+    if ( hr == D2DERR_RECREATE_TARGET )
+    {
+        hr = S_OK;
+        DiscardResources();
     }
 
-    hr = pSurf->UnlockRect();
-
-    if (FAILED(hr)) { goto done; }
-
-
-    // Color fill the back buffer.
-    hr = m_pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBB);
-
-    if (FAILED(hr)) { goto done; }
-
-    hr = m_pDevice->ColorFill(pBB, NULL, D3DCOLOR_XRGB(0, 0, 0x80));
-
-    if (FAILED(hr)) { goto done; }
-
-
-    // Blit the frame.
-
-    hr = m_pDevice->StretchRect(pSurf, NULL, pBB, &m_rcDest, D3DTEXF_LINEAR);
-    
-    if (FAILED(hr)) { goto done; }
-
-
-    // Present the frame.
-    
-    hr = m_pDevice->Present(NULL, NULL, NULL, NULL);
-    
-
-done:
-
-	if(pSurf != NULL)
-		pSurf->Release();
-
-    if(pBB!= NULL)
-		pBB->Release();
-
-	return hr;
-}
-
-
-//-------------------------------------------------------------------
-// DestroyDevice 
-//
-// Release all Direct3D resources.
-//-------------------------------------------------------------------
-
-void DrawDevice::DestroyDevice()
-{
-	if(m_pSwapChain!=NULL)
-	{
-		m_pSwapChain->Release( );
-		m_pSwapChain=NULL;
-	}
-
-    if(m_pDevice!=NULL)
-	{
-		m_pDevice->Release( );
-		m_pDevice=NULL;
-	}
-    if(m_pD3D!=NULL)
-	{
-		m_pD3D->Release( );
-		m_pD3D=NULL;
-	}
+    return SUCCEEDED( hr );
 }

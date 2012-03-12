@@ -1,19 +1,15 @@
-/************************************************************************
-*                                                                       *
-*   SkeletalViewer.h -- Declares of CSkeletalViewerApp class            *
-*                                                                       *
-* Copyright (c) Microsoft Corp. All rights reserved.                    *
-*                                                                       *
-* This code is licensed under the terms of the                          *
-* Microsoft Kinect for Windows SDK (Beta)                               *
-* License Agreement: http://kinectforwindows.org/KinectSDK-ToU          *
-*                                                                       *
-************************************************************************/
+//------------------------------------------------------------------------------
+// <copyright file="SkeletalViewer.h" company="Microsoft">
+//     Copyright (c) Microsoft Corporation.  All rights reserved.
+// </copyright>
+//------------------------------------------------------------------------------
+
+// Declares of CSkeletalViewerApp class
 
 #pragma once
 
 #include "resource.h"
-#include "MSR_NuiApi.h"
+#include "NuiApi.h"
 #include "DrawDevice.h"
 #include "GestureDetector.h"
 #include "MoveAndMagnifyHandler.h"
@@ -21,85 +17,108 @@
 #define SZ_APPDLG_WINDOW_CLASS          _T("SkeletalViewerAppDlgWndClass")
 #define WM_USER_UPDATE_FPS              WM_USER
 #define WM_USER_UPDATE_COMBO            WM_USER+1
-#define WM_USER_UPDATE_DISTANCE         WM_USER+2
-#define WM_USER_UPDATE_USER             WM_USER+3
-#define WM_USER_UPDATE_STATE            WM_USER+4
-#define WM_USER_UPDATE_MAGNIFICATION    WM_USER+5
-#define WM_USER_UPDATE_MOVEX            WM_USER+6
-#define WM_USER_UPDATE_MOVEY            WM_USER+7
+#define WM_USER_UPDATE_TRACKING_COMBO   WM_USER+2
+
+/* James' stuff */
+#define WM_USER_UPDATE_DISTANCE         WM_USER+3
+#define WM_USER_UPDATE_USER             WM_USER+4
+#define WM_USER_UPDATE_STATE            WM_USER+5
+#define WM_USER_UPDATE_MAGNIFICATION    WM_USER+6
+#define WM_USER_UPDATE_MOVEX            WM_USER+7
+#define WM_USER_UPDATE_MOVEY            WM_USER+8
 
 DWORD WINAPI StartSkeletalViewer(LPVOID lpParam);
 
 class CSkeletalViewerApp
 {
 public:
-    CSkeletalViewerApp();
-    ~CSkeletalViewerApp();
-    HRESULT                 Nui_Init();
-    HRESULT                 Nui_Init(int index);
-    HRESULT                 Nui_Init(OLECHAR *instanceName);
-    void                    Nui_UnInit( );
-    void                    Nui_GotDepthAlert( );
-    void                    Nui_GotVideoAlert( );
-    void                    Nui_GotSkeletonAlert( );
-    void                    Nui_Zero();
-    void                    Nui_BlankSkeletonScreen( HWND hWnd );
-    void                    Nui_DoDoubleBuffer(HWND hWnd,HDC hDC);
-    void                    Nui_DrawSkeleton( bool bBlank, NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor );
-    void                    Nui_DrawSkeletonSegment( NUI_SKELETON_DATA * pSkel, int numJoints, ... );
-	int						DisplayWindow(HINSTANCE hInstance, int nCmdShow);
-	BOOL					DrawBox(Vector4& s_point, int scaleX, int scaleY);
+	CSkeletalViewerApp();
+	~CSkeletalViewerApp();
+	HRESULT                 Nui_Init( );
+	HRESULT                 Nui_Init( OLECHAR * instanceName );
+	void                    Nui_UnInit( );
+	void                    Nui_GotDepthAlert( );
+	void                    Nui_GotColorAlert( );
+	void                    Nui_GotSkeletonAlert( );
+	void                    Nui_Zero();
+	void                    Nui_BlankSkeletonScreen( HWND hWnd, bool getDC );
+	void                    Nui_DoDoubleBuffer(HWND hWnd,HDC hDC);
+	void                    Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor );
+	void                    Nui_DrawSkeletonId( NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor );
 
-    RGBQUAD                 Nui_ShortToQuad_Depth( USHORT s );
+	void                    Nui_DrawSkeletonSegment( NUI_SKELETON_DATA * pSkel, int numJoints, ... );
+	void                    Nui_EnableSeatedTracking(bool seated);
+	void                    Nui_SetApplicationTracking(bool applicationTracks);
+	void                    Nui_SetTrackedSkeletons(int skel1, int skel2);
 
-    static LRESULT CALLBACK MessageRouter(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-    LRESULT CALLBACK        WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-    static void CALLBACK    Nui_StatusProcThunk(const NuiStatusData *pStatusData);
-    void CALLBACK           Nui_StatusProc(const NuiStatusData *pStatusData);
+	RGBQUAD                 Nui_ShortToQuad_Depth( USHORT s );
 
-	// Magnifier hwnd
-    HWND m_hWnd;
+	static LRESULT CALLBACK MessageRouter(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+	LRESULT CALLBACK        WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+	static void CALLBACK    Nui_StatusProcThunk(HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName, void* pUserData);
+	void CALLBACK           Nui_StatusProc( HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName );
+
+	HWND m_hWnd;
+	HINSTANCE               m_hInstance;
+
+	int MessageBoxResource(UINT nID, UINT nType);
+
+	/* Added for remote startup */
+	int CSkeletalViewerApp::DisplayWindow(HINSTANCE hInstance, int nCmdShow);
 
 private:
-    bool m_fUpdatingUi;
-    void UpdateComboBox();
+	void UpdateComboBox();
+	void ClearComboBox();
 
-    CRITICAL_SECTION        m_critSecUi; // Gate UI operations on the background thread.
-    static DWORD WINAPI     Nui_ProcessThread(LPVOID pParam);
-    DWORD WINAPI            Nui_ProcessThread();
-    INuiInstance*           m_pNuiInstance;
-    BSTR                    m_instanceId;
+	void UpdateTrackingComboBoxes();
+	void UpdateTrackingFromComboBoxes();
 
-    // NUI and draw stuff
-    DrawDevice              m_DrawDepth;
-    DrawDevice              m_DrawVideo;
+	bool                    m_fUpdatingUi;
+	TCHAR                   m_szAppTitle[256];    // Application title
+	static DWORD WINAPI     Nui_ProcessThread(LPVOID pParam);
+	DWORD WINAPI            Nui_ProcessThread();
 
-    // thread handling
-    HANDLE        m_hThNuiProcess;
-    HANDLE        m_hEvNuiProcessStop;
+	// Current kinect
+	INuiSensor *            m_pNuiSensor;
+	BSTR                    m_instanceId;
 
-    HANDLE        m_hNextDepthFrameEvent;
-    HANDLE        m_hNextVideoFrameEvent;
-    HANDLE        m_hNextSkeletonEvent;
-    HANDLE        m_pDepthStreamHandle;
-    HANDLE        m_pVideoStreamHandle;
-    HFONT         m_hFontFPS;
+	// Draw devices
+	DrawDevice *            m_pDrawDepth;
+	DrawDevice *            m_pDrawColor;
+	ID2D1Factory *          m_pD2DFactory;
+
+	// thread handling
+	HANDLE        m_hThNuiProcess;
+	HANDLE        m_hEvNuiProcessStop;
+
+	HANDLE        m_hNextDepthFrameEvent;
+	HANDLE        m_hNextColorFrameEvent;
+	HANDLE        m_hNextSkeletonEvent;
+	HANDLE        m_pDepthStreamHandle;
+	HANDLE        m_pVideoStreamHandle;
+	HFONT         m_hFontFPS;
 	HFONT		  m_smallFontFPS;
-    HPEN          m_Pen[6];
-    HDC           m_SkeletonDC;
-    HBITMAP       m_SkeletonBMP;
-    HGDIOBJ       m_SkeletonOldObj;
-    int           m_PensTotal;
-    POINT         m_Points[NUI_SKELETON_POSITION_COUNT];
-    RGBQUAD       m_rgbWk[640*480];
-    int           m_LastSkeletonFoundTime;
-    bool          m_bScreenBlanked;
-    int           m_FramesTotal;
-    int           m_LastFPStime;
-    int           m_LastFramesTotal;
-};
+	HFONT         m_hFontSkeletonId;
+	HPEN          m_Pen[NUI_SKELETON_COUNT];
+	HDC           m_SkeletonDC;
+	HBITMAP       m_SkeletonBMP;
+	HGDIOBJ       m_SkeletonOldObj;
+	int           m_PensTotal;
+	POINT         m_Points[NUI_SKELETON_POSITION_COUNT];
+	RGBQUAD       m_rgbWk[640*480];
+	DWORD         m_LastSkeletonFoundTime;
+	bool          m_bScreenBlanked;
+	bool          m_bAppTracking;
+	int           m_DepthFramesTotal;
+	DWORD         m_LastDepthFPStime;
+	int           m_LastDepthFramesTotal;
+	DWORD         m_SkeletonIds[NUI_SKELETON_COUNT];
+	DWORD         m_TrackedSkeletonIds[NUI_SKELETON_MAX_TRACKED_COUNT];
+	ULONG_PTR     m_GdiplusToken;
 
-int MessageBoxResource(HWND hwnd,UINT nID,UINT nType);
+	// Draw a box around a skeletal position
+	BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, int scaleX, int scaleY);
+};
 
 
 
