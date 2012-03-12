@@ -80,6 +80,7 @@ int                 distanceInMM = 0;
 BOOL                isFullScreen = FALSE;
 int					xRes = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 int					yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+extern int activeSkeleton;
 
 //
 // FUNCTION: WinMain()
@@ -719,39 +720,39 @@ void drawRectangle(int ulx, int uly, int width, int height, int c)
 //
 // PURPOSE: Determine how much to magnify the screen by.
 //
-float GetMagnificationFactor(){
-	if (distanceInMM < 1000)
+float GetMagnificationFactor()
+{
+	// No skeleton, no magnification
+	if (activeSkeleton == -1)
 	{
 		return 1.0f;
 	}
-	else
+
+	// Make sure the floor isn't a ridiculous value
+	if (magnificationFloor > 8.0f)
 	{
-		// Make sure the floor isn't a ridiculous value
-		if (magnificationFloor > 8.0f)
-		{
-			magnificationFloor = 8.0f;
-		}
-		if (magnificationFloor < -8.0f)
-		{
-			magnificationFloor = -8.0f;
-		}
-
-		float convertedDistance = (distanceInMM / 1000.0f) + magnificationFloor;
-
-		// No going nuts with the magnification
-		if (convertedDistance < 1.0f)
-		{
-			magnificationFloor = 1.0f - (distanceInMM / 1000.0f);
-			return 1.0f;
-		}
-
-		// No going nuts with the magnification
-		if (convertedDistance > 32.0f)
-		{
-			magnificationFloor = 32.0f - (distanceInMM / 1000.0f);
-			return 32.0f;
-		}
-
-		return convertedDistance;
+		magnificationFloor = 8.0f;
 	}
+	if (magnificationFloor < -8.0f)
+	{
+		magnificationFloor = -8.0f;
+	}
+
+	float convertedDistance = (distanceInMM / 1000.0f) + magnificationFloor;
+
+	// No going nuts with the magnification
+	if (convertedDistance < 1.0f)
+	{
+		magnificationFloor = 1.0f - (distanceInMM / 1000.0f);
+		return 1.0f;
+	}
+
+	// No going nuts with the magnification
+	if (convertedDistance > 32.0f)
+	{
+		magnificationFloor = 32.0f - (distanceInMM / 1000.0f);
+		return 32.0f;
+	}
+
+	return convertedDistance;
 }
