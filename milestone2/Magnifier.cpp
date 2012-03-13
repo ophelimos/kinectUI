@@ -417,7 +417,7 @@ BOOL SetupViewfinder(HINSTANCE hInst)
 	{
 		return FALSE;
 	}
-	SetLayeredWindowAttributes(hwndViewfinder, 0, 150, LWA_ALPHA);      
+	SetLayeredWindowAttributes(hwndViewfinder, 0, 220, LWA_ALPHA);      
 
 	return TRUE;
 }
@@ -457,7 +457,7 @@ BOOL SetupLens(HINSTANCE hInst)
 	{
 		return FALSE;
 	}
-	SetLayeredWindowAttributes(hwndLens, 0, 180, LWA_ALPHA);  
+	SetLayeredWindowAttributes(hwndLens, 0, 235, LWA_ALPHA);  
 
 	return TRUE;
 }
@@ -628,17 +628,17 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 	// Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
 	SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, 
 		SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
+	// Make overlay topmost window. 
+	SetWindowPos(hwndOverlay, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
+		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );    
+
 	// Make viewfinder topmost window. 
 	SetWindowPos(hwndViewfinder, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
 		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
 	// Make lens topmost window. 
 	SetWindowPos(hwndLens, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
 		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );    
-    // Make lens topmost window. 
-	SetWindowPos(hwndOverlay, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
-		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );    
-
-
+    
 	// Force redraw.
 	InvalidateRect(hwndMag, NULL, TRUE);   
     

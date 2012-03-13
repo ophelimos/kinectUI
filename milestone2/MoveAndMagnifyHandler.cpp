@@ -94,6 +94,6 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 
 	// Exponentially decrease amounts (friction)
 	magnifyAmount /= 2;
-	moveAmount_x /= 2;
-	moveAmount_y /= 2;
+	// moveAmount_x /= 2;
+	// moveAmount_y /= 2;
 }

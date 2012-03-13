@@ -13,7 +13,7 @@
 #include "GestureState.h"
 
 /* Magic constants */
-const FLOAT detectRange = 0.15f;
+const FLOAT detectRange = 0.20f;
 // A little bit smaller, since otherwise accidental hits are too easy
 const FLOAT handsTogether = 0.1f;
 // 10000000 is about one second
@@ -21,7 +21,8 @@ const long long oneSecondTimeout = 10000000;
 const long long timeout = 10*oneSecondTimeout;
 const FLOAT saluteOver = 0.25f;
 const FLOAT saluteUp = 0.15f;
-const FLOAT centerOver = 0.30f;
+const FLOAT centerRightOver = 0.30f;
+const FLOAT centerLeftOver = 0.25f;
 const FLOAT directionRadius = 0.30f;
 const int boxSmall = 100;
 const int boxLarge = 200;
@@ -31,6 +32,8 @@ const int overlayCircleRadius = 150;
 //const LONG moveAmount = 50;
 //const float magnifyAmount = 0.1f;
 const FLOAT centerBoxSize = 0.15f;
+const int constantMovement = 10;
+const FLOAT clickDistance = 0.50;
 
 enum Direction {
 	RIGHT,

@@ -19,6 +19,7 @@
 CSkeletalViewerApp  g_skeletalViewerApp;  // Application class
 int activeSkeleton = -1;		// The skeleton we care about for gestures
 GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
+BOOL                startWithDebugScreen = FALSE;
 extern int distanceInMM;
 
 #define INSTANCE_MUTEX_NAME L"SkeletalViewerInstanceCheck"

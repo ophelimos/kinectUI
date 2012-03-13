@@ -9,6 +9,7 @@
 #include "stdafx.h"
 #include "SkeletalViewer.h"
 #include "resource.h"
+#include "Magnifier.h"
 #include <mmsystem.h>
 #include <assert.h>
 #include <strsafe.h>
@@ -18,6 +19,8 @@ extern int distanceInMM;
 extern int activeSkeleton;
 extern GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
 extern BOOL allowMagnifyGestures;
+extern LONG moveAmount_x;
+extern LONG moveAmount_y;
 
 static const COLORREF g_JointColorTable[NUI_SKELETON_POSITION_COUNT] = 
 {
@@ -731,11 +734,11 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				centerPoint.x += centerOver;
+				centerPoint.x += centerRightOver;
 			} 
 			else 
 			{
-				centerPoint.x -= centerOver;
+				centerPoint.x -= centerLeftOver;
 			}
 			if (allowMagnifyGestures)
 			{
@@ -752,11 +755,11 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				centerPoint.x += centerOver;
+				centerPoint.x += centerRightOver;
 			} 
 			else 
 			{
-				centerPoint.x -= centerOver;
+				centerPoint.x -= centerLeftOver;
 			}
 			DrawBox(centerPoint, detectRange/2);
 			break;
@@ -769,11 +772,11 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				centerPoint.x += centerOver;
+				centerPoint.x += centerRightOver;
 			} 
 			else 
 			{
-				centerPoint.x -= centerOver;
+				centerPoint.x -= centerLeftOver;
 			}
 			DrawBox(centerPoint, centerBoxSize/2);
 			DrawX(centerPoint);
@@ -783,11 +786,11 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			//	centerPoint = spinePoint;
 			//	if (gestureDetector->hand == RIGHT)
 			//	{
-			//		centerPoint.x += centerOver;
+			//		centerPoint.x += centerRightOver;
 			//	} 
 			//	else 
 			//	{
-			//		centerPoint.x -= centerOver;
+			//		centerPoint.x -= centerLeftOver;
 			//	}
 			//	DrawBox(centerPoint, detectRange/2);
 			//	break;
@@ -796,11 +799,11 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				centerPoint.x += centerOver;
+				centerPoint.x += centerRightOver;
 			} 
 			else 
 			{
-				centerPoint.x -= centerOver;
+				centerPoint.x -= centerLeftOver;
 			}
 			upPoint = centerPoint;
 			upPoint.y += directionRadius;
@@ -821,11 +824,11 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				centerPoint.x += centerOver;
+				centerPoint.x += centerRightOver;
 			} 
 			else 
 			{
-				centerPoint.x -= centerOver;
+				centerPoint.x -= centerLeftOver;
 			}
 			rightPoint = centerPoint;
 			rightPoint.x += directionRadius;
@@ -840,11 +843,11 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			centerPoint = spinePoint;
 			if (gestureDetector->hand == RIGHT)
 			{
-				centerPoint.x += centerOver;
+				centerPoint.x += centerRightOver;
 			} 
 			else 
 			{
-				centerPoint.x -= centerOver;
+				centerPoint.x -= centerLeftOver;
 			}
 			upPoint = centerPoint;
 			upPoint.y += directionRadius;
@@ -1003,7 +1006,12 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 			// If we're no longer tracking the active skeleton, we don't have an active skeleton
 			if ((i == activeSkeleton) && (SkeletonFrame.SkeletonData[i].eTrackingState != NUI_SKELETON_TRACKED))
 			{
+				clearOverlay();
+				moveAmount_x = 0;
+				moveAmount_y = 0;
+				gestureDetectors[activeSkeleton]->state->state = OFF;
 				activeSkeleton = -1;
+				
 			}
 
 			if( SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_TRACKED ||
@@ -1013,6 +1021,9 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 				// If we don't have an active skeleton, whatever's tracked becomes the active one
 				if (activeSkeleton == -1)
 				{
+					clearOverlay();
+					moveAmount_x = 0;
+					moveAmount_y = 0;
 					activeSkeleton = i;
 				}
 			}
