@@ -611,6 +611,12 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 		allowMagnifyGesturesButtonReleased = TRUE;
 	}
 
+	// Kill switch
+	if (GetAsyncKeyState(VK_HOME) && GetAsyncKeyState(VK_END))
+	{
+		exit(0);
+	}
+
 	UpdateMagnificationFactor();
 	RECT sourceRect = GetSourceRect();
 	// Set the source rectangle for the magnifier control.
