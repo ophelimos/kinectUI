@@ -117,7 +117,8 @@ private:
 	ULONG_PTR     m_GdiplusToken;
 
 	// Draw a box around a skeletal position
-	BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, int scaleX, int scaleY);
+	BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, FLOAT radius);
+	void CSkeletalViewerApp::DrawX(Vector4& s_point);	
 };
 
 

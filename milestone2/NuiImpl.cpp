@@ -687,8 +687,8 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 		// HPEN hCancelPen;
 		// hCancelPen = CreatePen(PS_DOT, 1, RGB(0,0,255));
 		// hOldObj = SelectObject(m_SkeletonDC, hCancelPen);
-		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], width, height);
-		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], width, height);
+		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], detectRange/2);
+		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], detectRange/2);
 		// SelectObject( m_SkeletonDC, hOldObj );
 		// DeleteObject(hCancelPen);
 
@@ -710,7 +710,7 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 		{
 		case OFF:
 			// Draw a detectRange box around the head
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD], width, height);
+			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD], detectRange/2);
 			break;
 		case SALUTE1:
 			// Up and away from the head, both hands
@@ -724,7 +724,7 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			{
 				headPoint.x -= saluteOver;
 			}
-			DrawBox(headPoint, width, height);
+			DrawBox(headPoint, detectRange/2);
 			break;
 		case SALUTE2:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
@@ -739,12 +739,12 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			}
 			if (allowMagnifyGestures)
 			{
-				DrawBox(spinePoint, width, height);			
-				DrawBox(centerPoint, width, height);
+				DrawBox(spinePoint, detectRange/2);			
+				DrawBox(centerPoint, detectRange/2);
 			}
 			else
 			{
-				DrawBox(centerPoint, width, height);
+				DrawBox(centerPoint, detectRange/2);
 			}
 			break;
 		case BODYCENTER:
@@ -758,80 +758,12 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			{
 				centerPoint.x -= centerOver;
 			}
-			DrawBox(centerPoint, width, height);
+			DrawBox(centerPoint, detectRange/2);
 			break;
 		case MOVECENTER:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerOver;
-			}
-			upPoint = centerPoint;
-			upPoint.y += directionRadius;
-			downPoint = centerPoint;
-			downPoint.y -= directionRadius;
-			rightPoint = centerPoint;
-			rightPoint.x += directionRadius;
-			leftPoint = centerPoint;
-			leftPoint.x -= directionRadius;
-			DrawBox(upPoint, width, height);
-			DrawBox(downPoint, width, height);
-			DrawBox(leftPoint, width, height);
-			DrawBox(rightPoint, width, height);
-			break;
 		case MOVEUP:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerOver;
-			}
-			upPoint = centerPoint;
-			upPoint.y += directionRadius;
-			DrawBox(upPoint, width, height);
-			DrawBox(centerPoint, width, height);
-			break;
 		case MOVEDOWN:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerOver;
-			}
-			downPoint = centerPoint;
-			downPoint.y -= directionRadius;
-			DrawBox(downPoint, width, height);
-			DrawBox(centerPoint, width, height);
-			break;
 		case MOVERIGHT:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerOver;
-			}
-			rightPoint = centerPoint;
-			rightPoint.x += directionRadius;
-			DrawBox(rightPoint, width, height);
-			DrawBox(centerPoint, width, height);
-			break;
 		case MOVELEFT:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 			centerPoint = spinePoint;
@@ -843,10 +775,8 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			{
 				centerPoint.x -= centerOver;
 			}
-			leftPoint = centerPoint;
-			leftPoint.x -= directionRadius;
-			DrawBox(leftPoint, width, height);
-			DrawBox(centerPoint, width, height);
+			DrawBox(centerPoint, centerBoxSize/2);
+			DrawX(centerPoint);
 			break;
 			//case MOVE:
 			//	spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
@@ -859,7 +789,7 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			//	{
 			//		centerPoint.x -= centerOver;
 			//	}
-			//	DrawBox(centerPoint, width, height);
+			//	DrawBox(centerPoint, detectRange/2);
 			//	break;
 		case MAGNIFYCENTER:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
@@ -880,10 +810,10 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			rightPoint.x += directionRadius;
 			leftPoint = centerPoint;
 			leftPoint.x -= directionRadius;
-			DrawBox(upPoint, width, height);
-			DrawBox(downPoint, width, height);
-			DrawBox(leftPoint, width, height);
-			DrawBox(rightPoint, width, height);
+			DrawBox(upPoint, detectRange/2);
+			DrawBox(downPoint, detectRange/2);
+			DrawBox(leftPoint, detectRange/2);
+			DrawBox(rightPoint, detectRange/2);
 			break;
 		case MAGNIFYUP:
 		case MAGNIFYDOWN:
@@ -901,8 +831,8 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			rightPoint.x += directionRadius;
 			leftPoint = centerPoint;
 			leftPoint.x -= directionRadius;
-			DrawBox(leftPoint, width, height);
-			DrawBox(rightPoint, width, height);
+			DrawBox(leftPoint, detectRange/2);
+			DrawBox(rightPoint, detectRange/2);
 			break;
 		case MAGNIFYLEFT:
 		case MAGNIFYRIGHT:
@@ -920,8 +850,8 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			upPoint.y += directionRadius;
 			downPoint = centerPoint;
 			downPoint.y -= directionRadius;
-			DrawBox(upPoint, width, height);
-			DrawBox(downPoint, width, height);
+			DrawBox(upPoint, detectRange/2);
+			DrawBox(downPoint, detectRange/2);
 			break;
 		}
 
@@ -975,16 +905,19 @@ void CSkeletalViewerApp::Nui_DrawSkeletonId( NUI_SKELETON_DATA * pSkel, HWND hWn
 }
 
 // Draw a box around a skeletal position
-BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, int scaleX, int scaleY)
+BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, FLOAT radius)
 {
+	RECT rct;
+	GetClientRect(GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), &rct);
+	int scaleX = rct.right;
+	int scaleY = rct.bottom;
+
 	// s_ denotes skeleton-space point
 	// Translate it to an image-space point
 	Vector4 s_ul = s_point;
 	Vector4 s_ur = s_point;
 	Vector4 s_ll = s_point;
 	Vector4 s_lr = s_point;
-
-	FLOAT radius = detectRange/2;
 
 	s_ul.x -= radius;
 	s_ul.y += radius;
@@ -1012,6 +945,32 @@ BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, int scaleX, int scaleY)
 
 	// Actually draw the rectangle from lines
 	return Polyline(m_SkeletonDC, i_points, NUM_POINTS);
+}
+
+// Draw an X to the corners from the given position
+void CSkeletalViewerApp::DrawX(Vector4& s_point)
+{
+	RECT rct;
+	GetClientRect(GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), &rct);
+	int scaleX = rct.right;
+	int scaleY = rct.bottom;
+
+	// Convert the point's X and Y to image coordinates
+	LONG lx=0, ly=0;
+	Vector4 i_point;
+	USHORT dummy;
+	NuiTransformSkeletonToDepthImage( s_point, &lx, &ly, &dummy );
+	i_point.x = (int) ( lx * scaleX) / 320;
+	i_point.y = (int) ( ly * scaleY) / 240;
+
+	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
+	LineTo(m_SkeletonDC, i_point.x - scaleX, i_point.y - scaleY);
+	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
+	LineTo(m_SkeletonDC, i_point.x + scaleX, i_point.y - scaleY);
+	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
+	LineTo(m_SkeletonDC, i_point.x - scaleX, i_point.y + scaleY);
+	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
+	LineTo(m_SkeletonDC, i_point.x + scaleX, i_point.y + scaleY);
 }
 
 void CSkeletalViewerApp::Nui_DoDoubleBuffer( HWND hWnd, HDC hDC )

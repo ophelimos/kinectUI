@@ -52,6 +52,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	FLOAT displacement_x = 0;
 	FLOAT displacement_y = 0;
 	long long curTime = 0;
+	Quadrant curQuadrant;
 
 	// Do as much as we can before entering the state machine, because long states are confusing
 
@@ -115,7 +116,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	// If they make the "cancel" gesture, stop recognizing gestures
 	// Cancel gesture here is both hands touching.
 	if (id == activeSkeleton
-		&& areClose(leftHandPoint, rightHandPoint, handsTogether))
+		&& areClose3D(leftHandPoint, rightHandPoint, handsTogether))
 	{
 		clearOverlay();
 		state->set(OFF);
@@ -220,7 +221,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				if (showOverlays)
 				{
 					drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
-					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56.0f);
+					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 				}
 				state->set(BODYCENTER);
 				startTime = getTimeIn100NSIntervals();
@@ -231,7 +232,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				if (showOverlays)
 				{
 					clearOverlay();
-					drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56.0f);
+					drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56);
 				}
 				state->set(MAGNIFYCENTER);
 				startTime = getTimeIn100NSIntervals();
@@ -245,31 +246,23 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				if (showOverlays)
 				{
 					clearOverlay();
-					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56.0f);
-
+					
+					int ulx;
+					int uly = (yRes/2) - (boxLarge/2);
 					if (hand == RIGHT)
 					{
-						// Center
-						drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-						// Vert
-						drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-						drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-						// Horiz
-						drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-						drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+						ulx = (xRes*3/4) - (boxLarge/2);
 					}
 					else
 					{
-						// Center
-						drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-						// Vert
-						drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-						drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-						// Horiz
-						drawRectangle ((xRes/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-						drawRectangle ((xRes/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+						ulx = (xRes/4) - (boxLarge/2);
 					}
-
+					drawTrapezoid(ulx, uly, Q_TOP, 0);
+					drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+					drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+					drawTrapezoid(ulx, uly, Q_LEFT, 0);
+					drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 				}
 				state->set(MOVECENTER);
 				startTime = getTimeIn100NSIntervals();
@@ -322,388 +315,9 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case MOVECENTER:
-		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-		centerPoint = spinePoint;
-		if (hand == RIGHT)
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			centerPoint.x += centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
-		}
-		else
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			centerPoint.x -= centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
-		}
-		// Place the direction arrows
-		upPoint = centerPoint;
-		upPoint.y += directionRadius;
-		if (areClose(upPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Vert
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-				else
-				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Vert
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-			}
-			state->set(MOVEUP);
-			if (displacement_y < 0)
-			{
-				moveAmount_y += 500*displacement_y;
-			}
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		downPoint = centerPoint;
-		downPoint.y -= directionRadius;
-		if (areClose(downPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Vert
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-				else
-				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Vert
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-			}
-			state->set(MOVEDOWN);
-			if (displacement_y > 0)
-			{
-				moveAmount_y += 500*displacement_y;
-			}
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		rightPoint = centerPoint;
-		rightPoint.x += directionRadius;
-		if (areClose(rightPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Horiz
-					drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				}
-				else
-				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Horiz
-					drawRectangle ((xRes/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				}
-			}
-			state->set(MOVERIGHT);
-			if (displacement_x > 0)
-			{
-				moveAmount_x += 500*displacement_x;
-			}
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		leftPoint = centerPoint;
-		leftPoint.x -= directionRadius;
-		if (areClose(leftPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Horiz
-					drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				}
-				else
-				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-					// Horiz
-					drawRectangle ((xRes/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				}
-			}
-			state->set(MOVELEFT);
-			if (displacement_x < 0)
-			{
-				moveAmount_x += 500*displacement_x;
-			}
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		// Otherwise, keep looking (until the timeout)
-		break;
 	case MOVEUP:
-		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-		centerPoint = spinePoint;
-		if (hand == RIGHT)
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			centerPoint.x += centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
-		}
-		else
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			centerPoint.x -= centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
-		}
-		// Specific direction
-		upPoint = centerPoint;
-		upPoint.y += directionRadius;
-		if (areClose(upPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Vert
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-				else
-				{
-					// Vert
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-			}
-			state->set(MOVEUP);
-			if (displacement_y < 0)
-			{
-				moveAmount_y += 500*displacement_y;
-			}
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		else if (showOverlays)
-		{
-			if (hand == RIGHT)
-			{
-				// Vert
-				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-			}
-			else
-			{
-				// Vert
-				drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-			}
-		}
-		       
-		// Back to MOVECENTER
-		if (areClose(centerPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Vert
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-				}
-				else
-				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Vert
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-				}
-			}
-			state->set(MOVECENTER);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		// Otherwise, keep looking (until the timeout)
-		break;
 	case MOVEDOWN:
-		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-		centerPoint = spinePoint;
-		if (hand == RIGHT)
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			centerPoint.x += centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
-		}
-		else
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			centerPoint.x -= centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
-		}
-		// Specific direction
-		downPoint = centerPoint;
-		downPoint.y -= directionRadius;
-		if (areClose(downPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Vert
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-				else
-				{
-					// Vert
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
-				}
-			}
-			state->set(MOVEDOWN);
-			if (displacement_y > 0)
-			{
-				moveAmount_y += 500*displacement_y;
-			}
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		else if (showOverlays)
-		{
-			if (hand == RIGHT)
-			{
-				// Vert
-				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-			}
-			else
-			{
-				// Vert
-				drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-			}
-		}
-		// Back to MOVECENTER
-		if (areClose(centerPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Vert
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-				}
-				else
-				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Vert
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-				}
-			}
-			state->set(MOVECENTER);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		// Otherwise, keep looking (until the timeout)
-		break;
 	case MOVERIGHT:
-		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-		centerPoint = spinePoint;
-		if (hand == RIGHT)
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			centerPoint.x += centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT], displacement_x, displacement_y);
-		}
-		else
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			centerPoint.x -= centerOver;
-			// Add velocity
-			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
-		}
-		// Specific direction
-		rightPoint = centerPoint;
-		rightPoint.x += directionRadius;
-		if (areClose(rightPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Horiz
-					drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				}
-				else
-				{
-					// Horiz
-					drawRectangle ((xRes/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				}
-			}
-			state->set(MOVERIGHT);
-			if (displacement_x > 0)
-			{
-				moveAmount_x += 500*displacement_x;
-			}
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		else if (showOverlays)
-		{
-			if (hand == RIGHT)
-			{
-				// Horiz
-				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			}
-			else
-			{
-				// Horiz
-				drawRectangle ((xRes/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			}
-		}
-		// Back to MOVECENTER
-		if (areClose(centerPoint, handPoint, detectRange))
-		{
-			if (showOverlays)
-			{
-				if (hand == RIGHT)
-				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Horiz
-					drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-				}
-				else
-				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Horiz
-					drawRectangle ((xRes/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-				}
-			}
-			state->set(MOVECENTER);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		// Otherwise, keep looking (until the timeout)
-		break;
 	case MOVELEFT:
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
@@ -722,22 +336,112 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			getDifference(handPoint, prevSkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT], displacement_x, displacement_y);
 		}
 		// Specific direction
-		leftPoint = centerPoint;
-		leftPoint.x -= directionRadius;
-		if (areClose(leftPoint, handPoint, detectRange))
+		curQuadrant = findQuadrant(centerPoint, handPoint);
+		
+		// Place the direction arrows
+		if (curQuadrant == Q_TOP)
 		{
 			if (showOverlays)
 			{
+				int ulx;
+				int uly = (yRes/2) - (boxLarge/2);
 				if (hand == RIGHT)
 				{
-					// Horiz
-					drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+					ulx = (xRes*3/4) - (boxLarge/2);
 				}
 				else
 				{
-					// Horiz
-					drawRectangle ((xRes/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+					ulx = (xRes/4) - (boxLarge/2);
 				}
+				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 0);
+				drawTrapezoid(ulx, uly, Q_TOP, 1);				
+				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+			}
+			state->set(MOVEUP);
+			if (displacement_y < 0)
+			{
+				moveAmount_y += 500*displacement_y;
+			}
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		else if (curQuadrant == Q_BOTTOM)
+		{
+			if (showOverlays)
+			{
+				int ulx;
+				int uly = (yRes/2) - (boxLarge/2);
+				if (hand == RIGHT)
+				{
+					ulx = (xRes*3/4) - (boxLarge/2);
+				}
+				else
+				{
+					ulx = (xRes/4) - (boxLarge/2);
+				}
+				drawTrapezoid(ulx, uly, Q_TOP, 0);
+				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 0);
+				drawTrapezoid(ulx, uly, Q_BOTTOM, 1);				
+				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+			}
+			state->set(MOVEDOWN);
+			if (displacement_y > 0)
+			{
+				moveAmount_y += 500*displacement_y;
+			}
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		else if (curQuadrant == Q_RIGHT)
+		{
+			if (showOverlays)
+			{
+				int ulx;
+				int uly = (yRes/2) - (boxLarge/2);
+				if (hand == RIGHT)
+				{
+					ulx = (xRes*3/4) - (boxLarge/2);
+				}
+				else
+				{
+					ulx = (xRes/4) - (boxLarge/2);
+				}
+				drawTrapezoid(ulx, uly, Q_TOP, 0);
+				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 0);
+				drawTrapezoid(ulx, uly, Q_RIGHT, 1);				
+				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+			}
+			state->set(MOVERIGHT);
+			if (displacement_x > 0)
+			{
+				moveAmount_x += 500*displacement_x;
+			}
+			startTime = getTimeIn100NSIntervals();
+			return;
+		}
+		else if (curQuadrant == Q_LEFT)
+		{
+			if (showOverlays)
+			{
+				int ulx;
+				int uly = (yRes/2) - (boxLarge/2);
+				if (hand == RIGHT)
+				{
+					ulx = (xRes*3/4) - (boxLarge/2);
+				}
+				else
+				{
+					ulx = (xRes/4) - (boxLarge/2);
+				}
+				drawTrapezoid(ulx, uly, Q_TOP, 0);
+				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 1);
+				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
 			state->set(MOVELEFT);
 			if (displacement_x < 0)
@@ -747,38 +451,27 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
-		else if (showOverlays)
-		{
-			if (hand == RIGHT)
-			{
-				// Horiz
-				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			}
-			else
-			{
-				// Horiz
-				drawRectangle ((xRes/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			}
-		}
 		// Back to MOVECENTER
-		if (areClose(centerPoint, handPoint, detectRange))
+		else if (curQuadrant == Q_CENTER)
 		{
 			if (showOverlays)
 			{
+				int ulx;
+				int uly = (yRes/2) - (boxLarge/2);
 				if (hand == RIGHT)
 				{
-					// Center
-					drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Horiz
-					drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+					ulx = (xRes*3/4) - (boxLarge/2);
 				}
 				else
 				{
-					// Center
-					drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-					// Horiz
-					drawRectangle ((xRes/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+					ulx = (xRes/4) - (boxLarge/2);
 				}
+				drawTrapezoid(ulx, uly, Q_TOP, 0);
+				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 0);
+				drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
 			state->set(MOVECENTER);
 			startTime = getTimeIn100NSIntervals();

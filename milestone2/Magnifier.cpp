@@ -37,6 +37,7 @@
 * 
 *************************************************************************************************/
 #include "Magnifier.h"
+#include "GestureDetector.h"
 
 // Make it easier to pick what part of the program you want to run.
 enum ProgramMode
@@ -72,7 +73,6 @@ RECT                viewfinderWindowRect;
 RECT                overlayWindowRect;
 RECT                hostWindowRect;
 BOOL                isMagnifierOff = FALSE;
-BOOL                hideWindowButtonReleased = TRUE;
 BOOL                allowMagnifyGestures = FALSE;
 BOOL				showOverlays = TRUE;
 float               magnificationFloor = 0.0f;
@@ -170,10 +170,14 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		}
         else if (wParam == VK_F6)
 		{
-			int size = 200;
-			drawRectangle ((xRes/2) - (size/2), (yRes/2) - (size/2), size, size, 0);
-			drawRectangle (50,50,200,100,0);
-			drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56.0f);
+			// int size = 200;
+			// drawRectangle ((xRes/2) - (size/2), (yRes/2) - (size/2), size, size, 0);
+			// drawRectangle (50,50,200,100,0);
+			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_TOP, 0);
+			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_BOTTOM, 0);
+			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_RIGHT, 1);
+			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_LEFT, 1);
+			drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 		}
         else if (wParam == VK_F7)
 		{
@@ -546,6 +550,7 @@ RECT GetSourceRect (){
 //
 void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/)
 {
+	static BOOL hideWindowButtonReleased = TRUE;
 	if (GetAsyncKeyState(VK_END))
 	{
 		if (hideWindowButtonReleased)
@@ -562,29 +567,48 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 	{
 		hideWindowButtonReleased = TRUE;
 	}
+
+	static BOOL hideOverlaysButtonReleased = TRUE;
 	if (GetAsyncKeyState(VK_F10))
 	{
-		if (showOverlays)
+		if (hideOverlaysButtonReleased)
 		{
-			clearOverlay();
-			showOverlays = FALSE;
-		}
-		else
-		{
-			showOverlays = TRUE;
+			hideOverlaysButtonReleased = FALSE;
+			if (showOverlays)
+			{
+				clearOverlay();
+				showOverlays = FALSE;
+			}
+			else
+			{
+				showOverlays = TRUE;
+			}
 		}
 	}
+	else
+	{
+		hideOverlaysButtonReleased = TRUE;
+	}
 
+	static BOOL allowMagnifyGesturesButtonReleased = TRUE;
 	if (GetAsyncKeyState(VK_F9)) // Requested magnify gestures toggle
 	{
-		if (allowMagnifyGestures)
+		if (allowMagnifyGesturesButtonReleased)
 		{
-			allowMagnifyGestures = FALSE;
+			allowMagnifyGesturesButtonReleased = FALSE;
+			if (allowMagnifyGestures)
+			{
+				allowMagnifyGestures = FALSE;
+			}
+			else
+			{
+				allowMagnifyGestures = TRUE;
+			}
 		}
-		else
-		{
-			allowMagnifyGestures = TRUE;
-		}
+	}
+	else
+	{
+		allowMagnifyGesturesButtonReleased = TRUE;
 	}
 
 	UpdateMagnificationFactor();
@@ -693,42 +717,120 @@ void clearOverlay()
 	return;
 }
 
-Status drawText(float x1, float y1, WCHAR string[], float size)
+Status drawText(int x1, int y1, WCHAR string[], int size)
 {
-    Graphics g(hwndOverlay);
-    FontFamily  fontFamily(L"Arial");
-    Font        font(&fontFamily, size, FontStyleRegular, UnitPixel);
-    PointF      pointF(x1, y1);
-    SolidBrush  solidBrush(Color(255, 128, 255, 128));
+	if (! IsWindowVisible(hwndOverlay))
+	{
+		ShowWindow(hwndOverlay, SW_SHOW);
+	}
+	Graphics g(hwndOverlay);
+	FontFamily  fontFamily(L"Arial");
+	Font        font(&fontFamily, (float) size, FontStyleRegular, UnitPixel);
+	PointF      pointF((float) x1, (float) y1);
+	SolidBrush  solidBrush(Color(255, 128, 255, 128));
 
 	// Create a solid background so the text is visible
 	SolidBrush backgroundBrush(Color(255, 0, 0, 0));
 	Rect backgroundRect(x1 - size, y1, size * strlen( (const char*) string) * 13, size);
 	g.FillRectangle(&backgroundBrush, backgroundRect);
 
-    Status result = g.DrawString(string, -1, &font, pointF, &solidBrush);
+	Status result = g.DrawString(string, -1, &font, pointF, &solidBrush);
     
-    return result;
+	return result;
 }
 
 void drawRectangle(int ulx, int uly, int width, int height, int c)
 {
-	if ( ! IsWindowVisible(hwndOverlay))
+	if (! IsWindowVisible(hwndOverlay))
 	{
-		clearOverlay();
-        ShowWindow(hwndOverlay, SW_SHOW);
-    }
-    Graphics g(hwndOverlay);
-    int green = c*255;
-    int red = abs(green-255);
-    Pen pen(Color(255, (BYTE) red, (BYTE) green, 0), 10.0f);
+		ShowWindow(hwndOverlay, SW_SHOW);
+	}
+	Graphics g(hwndOverlay);
+	int green = c*255;
+	int red = abs(green-255);
+	Pen pen(Color(255, (BYTE) red, (BYTE) green, 0), 10.0f);
 
-    Rect rectangle(ulx, uly, width, height);    
-    g.DrawRectangle( &pen, rectangle );        
-    
-    //drawText (200, 200, L"HELLO WORLD");
+	Rect rectangle(ulx, uly, width, height);    
+	g.DrawRectangle( &pen, rectangle );        
 
-    return;
+	return;
+}
+
+Status drawTrapezoid(int ulx, int uly, Quadrant quad, int on)
+{
+	const int pointsInTrapezoid = 5;
+
+	if (! IsWindowVisible(hwndOverlay))
+	{
+		ShowWindow(hwndOverlay, SW_SHOW);
+	}
+
+	Graphics g(hwndOverlay);
+	BYTE red, green;
+	if (on)
+	{
+		red = 0;
+		green = 255;
+	}
+	else
+	{
+		red = 255;
+		green = 0;
+	}
+	Pen pen( Color(255, red, green, 0), 10.0f);
+
+	int maxDist = 0;
+	if (xRes > yRes)
+	{
+		maxDist = xRes;
+	}
+	else
+	{
+		maxDist = yRes;
+	}
+
+	if (quad == Q_TOP)
+	{
+		Point trapezoidPoints[pointsInTrapezoid] = {
+			Point(ulx, uly),
+			Point(ulx - maxDist, uly - maxDist),
+			Point(ulx + boxLarge + maxDist, uly - maxDist),
+			Point(ulx + boxLarge, uly),
+			Point(ulx, uly)};
+		return g.DrawPolygon(&pen, trapezoidPoints, pointsInTrapezoid);
+	}
+	else if (quad == Q_BOTTOM)
+	{
+		Point trapezoidPoints[pointsInTrapezoid] = {
+			Point(ulx, uly + boxLarge),
+			Point(ulx - maxDist, uly + boxLarge + maxDist),
+			Point(ulx + boxLarge + maxDist, uly + boxLarge + maxDist),
+			Point(ulx + boxLarge, uly + boxLarge),
+			Point(ulx, uly + boxLarge)};
+		return g.DrawPolygon(&pen, trapezoidPoints, pointsInTrapezoid);
+	}
+	else if (quad == Q_RIGHT)
+	{
+		Point trapezoidPoints[pointsInTrapezoid] = {
+			Point(ulx + boxLarge, uly),
+			Point(ulx + boxLarge + maxDist, uly - maxDist),
+			Point(ulx + boxLarge + maxDist, uly + boxLarge + maxDist),
+			Point(ulx + boxLarge, uly + boxLarge),
+			Point(ulx + boxLarge, uly)};
+		return g.DrawPolygon(&pen, trapezoidPoints, pointsInTrapezoid);
+	}
+	else if (quad == Q_LEFT)
+	{
+		Point trapezoidPoints[pointsInTrapezoid] = {
+			Point(ulx, uly),
+			Point(ulx - maxDist, uly - maxDist),
+			Point(ulx - maxDist, uly + boxLarge + maxDist),
+			Point(ulx, uly + boxLarge),
+			Point(ulx, uly)};
+		return g.DrawPolygon(&pen, trapezoidPoints, pointsInTrapezoid);
+	}
+
+	return GenericError;
 }
 
 //

@@ -21,7 +21,7 @@ const long long oneSecondTimeout = 10000000;
 const long long timeout = 10*oneSecondTimeout;
 const FLOAT saluteOver = 0.25f;
 const FLOAT saluteUp = 0.15f;
-const FLOAT centerOver = 0.25f;
+const FLOAT centerOver = 0.30f;
 const FLOAT directionRadius = 0.30f;
 const int boxSmall = 100;
 const int boxLarge = 200;
@@ -30,7 +30,7 @@ const int overlayCircleRadius = 150;
 /* const FLOAT moveDown = 0.2f; */
 //const LONG moveAmount = 50;
 //const float magnifyAmount = 0.1f;
-const float centerBoxSize = 0.20f;
+const FLOAT centerBoxSize = 0.15f;
 
 enum Direction {
 	RIGHT,
