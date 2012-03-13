@@ -8,12 +8,13 @@ extern int activeSkeleton;
 extern LONG moveAmount_x;
 extern LONG moveAmount_y;
 extern float magnifyAmount;
-extern int hideWindowTimeout;
+BOOL hideWindowOn = FALSE;
 extern float magnificationFloor;
 extern BOOL allowMagnifyGestures;
 extern BOOL showOverlays;
 extern int xRes;
 extern int yRes;
+extern HWND hwndMag;
 
 GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 {
@@ -54,13 +55,51 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 
 	// Do as much as we can before entering the state machine, because long states are confusing
 
+	// If they make the "stop" gesture, turn off gesture recognition and magnification period
+	
+	// // In this case the "stop" gesture is hands _crossed_ and touching the shoulders
+	// rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+	// leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+	// rightShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT];
+	// leftShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT];
+	// if (areClose(leftShoulderPoint, rightHandPoint, detectRange) && areClose(rightShoulderPoint, leftHandPoint, detectRange))
+
+	// Stop gesture is hands on head
+	rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+	leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+	headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+	if (id == activeSkeleton // Only if we're the active skeleton - nobody else should be able to kill it
+		&& areClose3D(headPoint, rightHandPoint, detectRange) 
+		&& areClose3D(headPoint, leftHandPoint, detectRange))
+	{
+		// Stop us from immediately re-enabling after disabling (cycling)
+		if (! hideWindowOn)
+		{
+			hideWindowOn = TRUE;
+			// Reset magnification value
+			magnificationFloor = 0;
+			HideMagnifier();
+			clearOverlay();
+			state->set(OFF);
+		}
+	}
+	else
+	{
+		hideWindowOn = FALSE;
+	}
+
+	// If the magnifier is off now, don't bother detecting gestures, just stop.
+	if (! IsWindowVisible(hwndMag))
+	{
+		return;
+	}
+
 	// Most states are only applicable if we're the active skeleton
 	if (id != activeSkeleton)
 	{
 		// Setting an already OFF state to OFF won't cause issues.
 		if (state->state != SALUTE1)
 		{
-			clearOverlay();
 			// Adding a 'return' here will prevent anyone from stealing focus while a gesture is happening
 			state->set(OFF);
 		}
@@ -71,56 +110,12 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	if ( (curTime - startTime) > timeout )
 	{
 		state->set(OFF);
-	}
-
-	// If they make the "stop" gesture, turn off gesture recognition and magnification period
-
-	// Stop gesture is hands on head
-	rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-	leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-	headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
-	if (areClose3D(headPoint, rightHandPoint, detectRange) && areClose3D(headPoint, leftHandPoint, detectRange))
-	{
-		// Stop us from immediately re-enabling after disabling
-		if (hideWindowTimeout < 30)
-		{
-			hideWindowTimeout++;
-		} 
-		else
-		{
-			// Reset magnification value
-			magnificationFloor = 0;
-			HideMagnifier();
-			clearOverlay();
-			state->set(OFF);
-		}
-	}
-	
-	
-	// // In this case the "stop" gesture is hands _crossed_ and touching the shoulders
-	// rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-	// leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-	// rightShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT];
-	// leftShoulderPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT];
-	// if (areClose(leftShoulderPoint, rightHandPoint, detectRange) && areClose(rightShoulderPoint, leftHandPoint, detectRange))
-	// {
-	// 	// Stop us from immediately re-enabling after disabling
-	// 	if (hideWindowTimeout < 30)
-	// 	{
-	// 		hideWindowTimeout++;
-	// 	} 
-	// 	else
-	// 	{
-	// 		// Reset magnification value
-	// 		magnificationFloor = 0;
-	// 		HideMagnifier();
-	// 		state->set(OFF);
-	// 	}
-	// }
+	}	
 
 	// If they make the "cancel" gesture, stop recognizing gestures
 	// Cancel gesture here is both hands touching.
-	if (areClose(leftHandPoint, rightHandPoint, handsTogether))
+	if (id == activeSkeleton
+		&& areClose(leftHandPoint, rightHandPoint, handsTogether))
 	{
 		clearOverlay();
 		state->set(OFF);
@@ -225,6 +220,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				if (showOverlays)
 				{
 					drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
+					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56.0f);
 				}
 				state->set(BODYCENTER);
 				startTime = getTimeIn100NSIntervals();
@@ -235,6 +231,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				if (showOverlays)
 				{
 					clearOverlay();
+					drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56.0f);
 				}
 				state->set(MAGNIFYCENTER);
 				startTime = getTimeIn100NSIntervals();
@@ -248,6 +245,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				if (showOverlays)
 				{
 					clearOverlay();
+					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56.0f);
 
 					if (hand == RIGHT)
 					{
@@ -1175,4 +1173,45 @@ void GestureDetector::getDifference(Vector4 now, Vector4 prev, FLOAT& displaceme
 	// Only 2-D, since 3-D ends up being non-intuitive.
 	displacement_x = prev.x - now.x;
 	displacement_y = prev.y - now.y;
+}
+
+// Figure out if a point is in the top, bottom, left, right, or center
+// areas of the screen.  The given argument is the center of the
+// "center" box.
+Quadrant GestureDetector::findQuadrant(Vector4 center, Vector4 point)
+{
+	// If it's in the center box, handle that right away using are already-existing areClose function
+	if (areClose(center, point, centerBoxSize))
+	{
+		return Q_CENTER;
+	}
+
+	// Make the point centered from the center, rather than whatever (0,0) is.
+	// Verified that point - center is right (as opposed to center - point)
+	point.x = point.x - center.x;
+	point.y = point.y - center.y;
+	
+	// Cut the screen into two diagonal halves
+	if (point.y > point.x) 	// Top left
+	{
+		if (point.y > -point.x)
+		{
+			return Q_TOP;
+		}
+		else
+		{
+			return Q_LEFT;
+		}
+	}
+	else 			// Bottom right
+	{
+		if (point.y > -point.x)
+		{
+			return Q_RIGHT;
+		}
+		else
+		{
+			return Q_BOTTOM;
+		}
+	}
 }

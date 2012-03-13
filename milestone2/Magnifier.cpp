@@ -47,6 +47,7 @@ enum ProgramMode
 };
 
 const ProgramMode mode = KINECT_AND_MAGNIFIER;
+//const ProgramMode mode = MAGNIFIER_ONLY;
 
 // Global variables and strings.
 HINSTANCE           hInst;
@@ -71,8 +72,7 @@ RECT                viewfinderWindowRect;
 RECT                overlayWindowRect;
 RECT                hostWindowRect;
 BOOL                isMagnifierOff = FALSE;
-BOOL                isOverlayOff = TRUE;
-int                 hideWindowTimeout = 0;
+BOOL                hideWindowButtonReleased = TRUE;
 BOOL                allowMagnifyGestures = FALSE;
 BOOL				showOverlays = TRUE;
 float               magnificationFloor = 0.0f;
@@ -80,7 +80,7 @@ int                 distanceInMM = 0;
 BOOL                isFullScreen = FALSE;
 int					xRes = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 int					yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-extern int activeSkeleton;
+extern int			activeSkeleton;
 
 //
 // FUNCTION: WinMain()
@@ -173,7 +173,7 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 			int size = 200;
 			drawRectangle ((xRes/2) - (size/2), (yRes/2) - (size/2), size, size, 0);
 			drawRectangle (50,50,200,100,0);
-			drawText (200, 200, L"HELLO WORLD");
+			drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56.0f);
 		}
         else if (wParam == VK_F7)
 		{
@@ -196,18 +196,6 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		{
 			clearOverlay();
 		}
-        else if (wParam == VK_F9) // Requested magnify gestures toggle
-	  {
-	    if (allowMagnifyGestures)
-	      {
-		allowMagnifyGestures = FALSE;
-	      }
-	    else
-	      {
-		allowMagnifyGestures = TRUE;
-	      }
-	  }
-		
 
 	case WM_SYSCOMMAND: 
 		if (GET_SC_WPARAM(wParam) == SC_MAXIMIZE) 
@@ -558,31 +546,58 @@ RECT GetSourceRect (){
 //
 void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/, DWORD /*dwTime*/)
 {
-  // Stop us from immediately re-enabling after disabling
-  if (isMagnifierOff && hideWindowTimeout < 120)
-    {
-      hideWindowTimeout++;
-      return;
-    }
-  if (GetAsyncKeyState(VK_END))
-    {
-      HideMagnifier();
-      if (isMagnifierOff)
+	if (GetAsyncKeyState(VK_END))
 	{
-	  return;
+		if (hideWindowButtonReleased)
+		{
+			hideWindowButtonReleased = FALSE;
+			HideMagnifier();
+			if (isMagnifierOff)
+			{
+				return;
+			}
+		}
 	}
-    }
+	else
+	{
+		hideWindowButtonReleased = TRUE;
+	}
+	if (GetAsyncKeyState(VK_F10))
+	{
+		if (showOverlays)
+		{
+			clearOverlay();
+			showOverlays = FALSE;
+		}
+		else
+		{
+			showOverlays = TRUE;
+		}
+	}
+
+	if (GetAsyncKeyState(VK_F9)) // Requested magnify gestures toggle
+	{
+		if (allowMagnifyGestures)
+		{
+			allowMagnifyGestures = FALSE;
+		}
+		else
+		{
+			allowMagnifyGestures = TRUE;
+		}
+	}
+
 	UpdateMagnificationFactor();
 	RECT sourceRect = GetSourceRect();
 	// Set the source rectangle for the magnifier control.
 	MagSetWindowSource(hwndMag, sourceRect);
-        
+
 	UpdateLens();
-   //UpdateOverlay();
-    
+	//UpdateOverlay();
+
 	// Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
 	SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, 
-		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
+		SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
 	// Make viewfinder topmost window. 
 	SetWindowPos(hwndViewfinder, HWND_TOPMOST, NULL, NULL, NULL, NULL, 
 		     SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
@@ -662,7 +677,6 @@ void HideMagnifier()
       ShowWindow(hwndHost, SW_SHOW);
       isMagnifierOff = TRUE;
     }
-  hideWindowTimeout = 0;
 }
 
 void clearOverlay()
@@ -674,38 +688,40 @@ void clearOverlay()
     
 		g.FillRectangle( &brush, overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom );        
 		ShowWindow(hwndOverlay, SW_HIDE);
-    
-		isOverlayOff = TRUE;
 	}
 
 	return;
 }
 
-void drawText(float x1, float y1, WCHAR string[])
+Status drawText(float x1, float y1, WCHAR string[], float size)
 {
     Graphics g(hwndOverlay);
-    FontFamily  fontFamily(L"Times New Roman");
-    Font        font(&fontFamily, 24, FontStyleRegular, UnitPixel);
+    FontFamily  fontFamily(L"Arial");
+    Font        font(&fontFamily, size, FontStyleRegular, UnitPixel);
     PointF      pointF(x1, y1);
-    SolidBrush  solidBrush(Color(255, 0, 0, 0));
+    SolidBrush  solidBrush(Color(255, 128, 255, 128));
 
-    g.DrawString(string, -1, &font, pointF, &solidBrush);
+	// Create a solid background so the text is visible
+	SolidBrush backgroundBrush(Color(255, 0, 0, 0));
+	Rect backgroundRect(x1 - size, y1, size * strlen( (const char*) string) * 13, size);
+	g.FillRectangle(&backgroundBrush, backgroundRect);
+
+    Status result = g.DrawString(string, -1, &font, pointF, &solidBrush);
     
-    return;
+    return result;
 }
 
 void drawRectangle(int ulx, int uly, int width, int height, int c)
 {
-    if (isOverlayOff){
-        clearOverlay();
+	if ( ! IsWindowVisible(hwndOverlay))
+	{
+		clearOverlay();
         ShowWindow(hwndOverlay, SW_SHOW);
-        
-        isOverlayOff = FALSE;
     }
     Graphics g(hwndOverlay);
     int green = c*255;
     int red = abs(green-255);
-    Pen pen(Color(255, red, green, 0), 10);
+    Pen pen(Color(255, (BYTE) red, (BYTE) green, 0), 10.0f);
 
     Rect rectangle(ulx, uly, width, height);    
     g.DrawRectangle( &pen, rectangle );        

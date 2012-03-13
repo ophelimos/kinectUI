@@ -5,7 +5,7 @@
 // and throwing a ton of static variables into GestureDetector gets cumbersome
 
 extern float magnificationFloor;
-extern int hideWindowTimeout;
+int hideSVWindowTimeout = 100;
 
 // Global variables, so GestureDetector can access them
 LONG moveAmount_x;
@@ -57,9 +57,9 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 {
 	// View skeletal viewer handler
 	// Stop us from immediately re-enabling after disabling
-	if (hideWindowTimeout < 30)
+	if (hideSVWindowTimeout < 30)
 	{
-		hideWindowTimeout++;
+		hideSVWindowTimeout++;
 	}
 	else if (GetAsyncKeyState(VK_HOME))
 	{
@@ -71,7 +71,7 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 		{
 			ShowWindow(hwnd, SW_SHOW);
 		}
-		hideWindowTimeout = 0;
+		hideSVWindowTimeout = 0;
 	}
 
 	// Print the amounts

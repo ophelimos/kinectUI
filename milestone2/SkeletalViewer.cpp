@@ -18,7 +18,6 @@
 // Global Variables:
 CSkeletalViewerApp  g_skeletalViewerApp;  // Application class
 int activeSkeleton = -1;		// The skeleton we care about for gestures
-extern int hideWindowTimeout;
 GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
 extern int distanceInMM;
 

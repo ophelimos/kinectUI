@@ -17,11 +17,12 @@ const FLOAT detectRange = 0.15f;
 // A little bit smaller, since otherwise accidental hits are too easy
 const FLOAT handsTogether = 0.1f;
 // 10000000 is about one second
-const long long timeout = 100000000;
+const long long oneSecondTimeout = 10000000;
+const long long timeout = 10*oneSecondTimeout;
 const FLOAT saluteOver = 0.25f;
 const FLOAT saluteUp = 0.15f;
 const FLOAT centerOver = 0.25f;
-const FLOAT directionRadius = 0.25f;
+const FLOAT directionRadius = 0.30f;
 const int boxSmall = 100;
 const int boxLarge = 200;
 const int overlayCircleRadius = 150;
@@ -29,12 +30,21 @@ const int overlayCircleRadius = 150;
 /* const FLOAT moveDown = 0.2f; */
 //const LONG moveAmount = 50;
 //const float magnifyAmount = 0.1f;
+const float centerBoxSize = 0.20f;
 
 enum Direction {
 	RIGHT,
 	LEFT,
 	UP,
 	DOWN,
+};
+
+enum Quadrant {
+	Q_TOP,
+	Q_BOTTOM,
+	Q_LEFT,
+	Q_RIGHT,
+	Q_CENTER,
 };
 
 class GestureDetector
@@ -62,6 +72,7 @@ public:
 	void moveCursor(Direction dir);
 	void GestureDetector::getDifference(Vector4 now, Vector4 prev, FLOAT& displacement_x, FLOAT& displacement_y);
 	bool GestureDetector::areClose3D(Vector4 &obj1, Vector4 &obj2, double range);
+	Quadrant GestureDetector::findQuadrant(Vector4 center, Vector4 point);
 
 	/* Necessary for debugging */
 	HWND hwnd;
