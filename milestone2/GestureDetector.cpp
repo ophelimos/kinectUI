@@ -124,14 +124,19 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 
 	// Click gesture
 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+	static BOOL amClicking = FALSE;
 	if (id == activeSkeleton
 	    && (spinePoint.z - rightHandPoint.z) > clickDistance)
 	{
-		//MessageBox(hwnd, "Click detected", "Click Detected", MB_OK);
-		//POINT mousePos;
-		//GetCursorPos(&mousePos);
-		mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-		//PostMessage(GetForegroundWindow(), WM_LBUTTONDOWN,0,MAKELPARAM(mousePos.x,mousePos.y));
+		if (! amClicking)
+		{
+			mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+			amClicking = TRUE;
+		}
+	}
+	else
+	{
+		amClicking = FALSE;
 	}
 
 	switch (state->state)
