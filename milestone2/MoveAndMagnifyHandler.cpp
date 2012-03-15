@@ -87,13 +87,15 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 	// Adjust position
 	POINT curPos;
 	GetCursorPos(&curPos);
-	// Negative, because it feels more intuitive
 	curPos.x += moveAmount_x;
 	curPos.y += moveAmount_y;
 	SetCursorPos(curPos.x, curPos.y);
 
 	// Exponentially decrease amounts (friction)
 	magnifyAmount /= 2;
-	// moveAmount_x /= 2;
-	// moveAmount_y /= 2;
+	if (MOVEMENT_STYLE == Velocity_Style)
+	{
+		moveAmount_x /= 2;
+		moveAmount_y /= 2;
+	}
 }

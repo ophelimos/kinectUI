@@ -388,9 +388,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
 			state->set(MOVEUP);
-			// moveAmount_y += 500*displacement_y - constantMovement;
-			moveAmount_x = 0;
-			moveAmount_y = -constantMovement;
+			if (MOVEMENT_STYLE == Velocity_Style)
+			{
+				if (displacement_y < 0)
+				{
+					moveAmount_y += 500*displacement_y;
+				}
+			}
+			else if (MOVEMENT_STYLE == Constant_Style)
+			{
+				moveAmount_x = 0;
+				moveAmount_y = -constantMovement;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
@@ -415,9 +424,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
 			state->set(MOVEDOWN);
-			// moveAmount_y += 500*displacement_y + constantMovement;
-			moveAmount_x = 0;
-			moveAmount_y = constantMovement;
+			if (MOVEMENT_STYLE == Velocity_Style)
+			{
+				if (displacement_y > 0)
+				{
+					moveAmount_y += 500*displacement_y;
+				}
+			}
+			else if (MOVEMENT_STYLE == Constant_Style)
+			{
+				moveAmount_x = 0;
+				moveAmount_y = constantMovement;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
@@ -442,9 +460,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
 			state->set(MOVERIGHT);
-			// moveAmount_x += 500*displacement_x + constantMovement;
-			moveAmount_y = 0;
-			moveAmount_x = constantMovement;
+			if (MOVEMENT_STYLE == Velocity_Style)
+			{
+				if (displacement_x > 0)
+				{
+					moveAmount_x += 500*displacement_x;
+				}
+			}
+			else if (MOVEMENT_STYLE == Constant_Style)
+			{
+				moveAmount_y = 0;
+				moveAmount_x = constantMovement;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
@@ -469,17 +496,29 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
 			state->set(MOVELEFT);
-			// moveAmount_x += 500*displacement_x - constantMovement;
-			moveAmount_y = 0;
-			moveAmount_x = -constantMovement;
+			if (MOVEMENT_STYLE == Velocity_Style)
+			{
+				if (displacement_x < 0)
+				{
+					moveAmount_x += 500*displacement_x;
+				}
+			}
+			else if (MOVEMENT_STYLE == Constant_Style)
+			{
+				moveAmount_y = 0;
+				moveAmount_x = -constantMovement;
+			}
 			startTime = getTimeIn100NSIntervals();
 			return;
 		}
 		// Back to MOVECENTER
 		else if (curQuadrant == Q_CENTER)
 		{
-			moveAmount_y = 0;
-			moveAmount_x = 0;
+			if (MOVEMENT_STYLE == Constant_Style)
+			{
+				moveAmount_y = 0;
+				moveAmount_x = 0;
+			}
 			if (showOverlays)
 			{
 				int ulx;

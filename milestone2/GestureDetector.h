@@ -12,6 +12,13 @@
 #include "NuiApi.h"
 #include "GestureState.h"
 
+/* Mode selection, because Karan likes one method and I like another */
+enum Movement_Style {
+	Velocity_Style,
+	Constant_Style,
+};
+const enum Movement_Style MOVEMENT_STYLE = Constant_Style;
+
 /* Magic constants */
 const FLOAT detectRange = 0.20f;
 // A little bit smaller, since otherwise accidental hits are too easy
