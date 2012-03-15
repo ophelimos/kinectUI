@@ -127,6 +127,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 		ShowWindow(hwndHost, nCmdShow);
 		UpdateWindow(hwndHost);
+
+		//makeCursorDisappear();
+
 		//ShowCursor(false);
 		// Create a timer to update the control.
 		UINT_PTR timerId = SetTimer(hwndHost, 0, timerInterval, UpdateMagWindow);
@@ -879,4 +882,23 @@ float GetMagnificationFactor()
 	}
 
 	return convertedDistance;
+}
+
+// We're going to once and for all make this happen
+void makeCursorDisappear()
+{
+	//CURSORINFO cursorInfo;
+	//GetCursorInfo(&cursorInfo);
+
+	// Make a transparent cursor
+	HCURSOR transparentCursor = LoadCursorFromFile("C:/Users/James/kinectUI/transparentCursor.cur");
+	if (transparentCursor != NULL)
+	{
+		HCURSOR transparentCursor2 = CopyCursor(transparentCursor);
+		//SetCursor(transparentCursor);
+		SetSystemCursor(transparentCursor2, OCR_NORMAL);
+		// Restore the mouse cursor, now that you've just gotten yourself into major trouble
+		//SystemParametersInfo(SPI_SETCURSORS, 0, 0, WM_SETTINGCHANGE | SPIF_UPDATEINIFILE);
+	}
+
 }

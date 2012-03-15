@@ -9,7 +9,10 @@
 
 // Ensure that the following definition is in effect before winuser.h is included.
 // This ensures that WM_INPUT definitions can be used.
-#define _WIN32_WINNT 0x0501    
+#define _WIN32_WINNT 0x0501   
+
+// Ensures we can use OCR_ constants
+#define OEMRESOURCE 0x1
 
 #include <windows.h>
 #include <wincodec.h>
@@ -44,3 +47,4 @@ void                drawRectangle(int ulx, int uly, int width, int height, int c
 Status              drawText(int x1, int y1, WCHAR string[], int size);
 Status              drawTrapezoid(int ulx, int uly, Quadrant quad, int on);
 void                clearOverlay();
+void				makeCursorDisappear();
