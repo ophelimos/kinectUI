@@ -26,6 +26,7 @@ const FLOAT handsTogether = 0.1f;
 // 10000000 is about one second
 const long long oneSecondTimeout = 10000000;
 const long long timeout = 10*oneSecondTimeout;
+const long long blackoutTime = 3*oneSecondTimeout;
 const FLOAT saluteOver = 0.25f;
 const FLOAT saluteUp = 0.15f;
 const FLOAT centerRightOver = 0.30f;
@@ -74,6 +75,7 @@ public:
 	GestureState* state;
 	// Now that we have multiple detectors, we need to know which user we refer to
 	int id;
+	BOOL blackout;
 
 	/* Functions */
 	void detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame);

@@ -23,6 +23,7 @@ GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 	id = userId;
 	state = new GestureState(hwnd, userId);
 	state->set(OFF);
+	blackout = FALSE;
 }
 
 GestureDetector::~GestureDetector(void)
@@ -69,28 +70,34 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
 	leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
 	headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
-	if (id == activeSkeleton // Only if we're the active skeleton - nobody else should be able to kill it
-		&& areClose3D(headPoint, rightHandPoint, detectRange) 
-		&& areClose3D(headPoint, leftHandPoint, detectRange))
+	if (id == activeSkeleton) // Only if we're the active skeleton - nobody else should be able to kill it
 	{
-		// Stop us from immediately re-enabling after disabling (cycling)
-		if (! hideWindowOn)
+		if (
+			areClose3D(headPoint, rightHandPoint, detectRange) 
+			&& areClose3D(headPoint, leftHandPoint, detectRange)
+			)
 		{
-			hideWindowOn = TRUE;
-			// Reset magnification value
-			magnificationFloor = 0;
-			HideMagnifier();
-			clearOverlay();
-			state->set(OFF);
+			moveAmount_y = 0;
+			moveAmount_x = 0;
+			// Stop us from immediately re-enabling after disabling (cycling)
+			if (! hideWindowOn)
+			{
+				hideWindowOn = TRUE;
+				// Reset magnification value
+				magnificationFloor = 0;
+				HideMagnifier();
+				clearOverlay();
+				state->set(OFF);
+			}
 		}
-	}
-	else
-	{
-		hideWindowOn = FALSE;
+		else
+		{
+			hideWindowOn = FALSE;
+		}
 	}
 
 	// If the magnifier is off now, don't bother detecting gestures, just stop.
-	if (! IsWindowVisible(hwndMag))
+	if (id == activeSkeleton && (! IsWindowVisible(hwndMag)))
 	{
 		return;
 	}
@@ -111,13 +118,23 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	if ( (curTime - startTime) > timeout )
 	{
 		state->set(OFF);
-	}	
+	}
+	if ( (curTime - startTime) < blackoutTime )
+	{
+		blackout = TRUE;
+	}
+	else
+	{
+		blackout = FALSE;
+	}
 
 	// If they make the "cancel" gesture, stop recognizing gestures
 	// Cancel gesture here is both hands touching.
 	if (id == activeSkeleton
 		&& areClose3D(leftHandPoint, rightHandPoint, handsTogether))
 	{
+		moveAmount_y = 0;
+		moveAmount_x = 0;
 		clearOverlay();
 		state->set(OFF);
 	}
@@ -126,7 +143,12 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 	static BOOL amClicking = FALSE;
 	if (id == activeSkeleton
-	    && (spinePoint.z - rightHandPoint.z) > clickDistance)
+		&&
+		(
+		((spinePoint.z - rightHandPoint.z) > clickDistance)
+		|| ((spinePoint.z - leftHandPoint.z) > clickDistance)
+		)
+		)
 	{
 		if (! amClicking)
 		{
@@ -228,6 +250,11 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case SALUTE2:
+		// Don't do anything during the dead time
+		if (blackout)
+		{
+			return;
+		}
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
 		if (hand == RIGHT)
@@ -300,6 +327,11 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case BODYCENTER:
+		// Don't do anything during the dead time
+		if (blackout)
+		{
+			return;
+		}
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
 		if (hand == RIGHT)

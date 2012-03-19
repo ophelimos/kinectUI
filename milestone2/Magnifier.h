@@ -47,4 +47,3 @@ void                drawRectangle(int ulx, int uly, int width, int height, int c
 Status              drawText(int x1, int y1, WCHAR string[], int size);
 Status              drawTrapezoid(int ulx, int uly, Quadrant quad, int on);
 void                clearOverlay();
-void				makeCursorDisappear();

@@ -128,9 +128,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		ShowWindow(hwndHost, nCmdShow);
 		UpdateWindow(hwndHost);
 
-		//makeCursorDisappear();
-
-		//ShowCursor(false);
 		// Create a timer to update the control.
 		UINT_PTR timerId = SetTimer(hwndHost, 0, timerInterval, UpdateMagWindow);
 
@@ -163,7 +160,6 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	case WM_KEYDOWN:
 		if (wParam == VK_ESCAPE)
 		{
-			ShowCursor(true);
 			PostQuitMessage(0);
 			break;
 		}        
@@ -216,7 +212,6 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		break; 
 
 	case WM_DESTROY:
-		ShowCursor(true);
 		PostQuitMessage(0);
 		break;
 
@@ -615,7 +610,7 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 	}
 
 	// Kill switch
-	if (GetAsyncKeyState(VK_HOME) && GetAsyncKeyState(VK_END))
+	if (GetAsyncKeyState(VK_F2) && GetAsyncKeyState(VK_F3))
 	{
 		exit(0);
 	}
@@ -656,7 +651,6 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 void GoFullScreen()
 {
 	isFullScreen = TRUE;
-	//ShowCursor(false);
 	// The window must be styled as layered for proper rendering. 
 	// It is styled as transparent so that it does not capture mouse clicks.
 	SetWindowLong(hwndHost, GWL_EXSTYLE, WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT);
@@ -882,23 +876,4 @@ float GetMagnificationFactor()
 	}
 
 	return convertedDistance;
-}
-
-// We're going to once and for all make this happen
-void makeCursorDisappear()
-{
-	//CURSORINFO cursorInfo;
-	//GetCursorInfo(&cursorInfo);
-
-	// Make a transparent cursor
-	HCURSOR transparentCursor = LoadCursorFromFile("C:/Users/James/kinectUI/transparentCursor.cur");
-	if (transparentCursor != NULL)
-	{
-		HCURSOR transparentCursor2 = CopyCursor(transparentCursor);
-		//SetCursor(transparentCursor);
-		SetSystemCursor(transparentCursor2, OCR_NORMAL);
-		// Restore the mouse cursor, now that you've just gotten yourself into major trouble
-		//SystemParametersInfo(SPI_SETCURSORS, 0, 0, WM_SETTINGCHANGE | SPIF_UPDATEINIFILE);
-	}
-
 }
