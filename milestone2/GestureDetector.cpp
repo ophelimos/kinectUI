@@ -58,7 +58,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	// Do as much as we can before entering the state machine, because long states are confusing
 
 	// If they make the "stop" gesture, turn off gesture recognition and magnification period
-	
+
 	// // In this case the "stop" gesture is hands _crossed_ and touching the shoulders
 	// rightHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
 	// leftHandPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
@@ -250,11 +250,6 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case SALUTE2:
-		// Don't do anything during the dead time
-		if (blackout)
-		{
-			return;
-		}
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
 		if (hand == RIGHT)
@@ -273,24 +268,34 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		{
 			if (areClose(spinePoint, handPoint, detectRange))
 			{
-				if (showOverlays)
+				// Lock-on
+				if (! blackout)
 				{
-					drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
-					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+					state->set(BODYCENTER);
+					startTime = getTimeIn100NSIntervals();
+					if (showOverlays)
+					{
+						drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
+						drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+					}
 				}
-				state->set(BODYCENTER);
-				startTime = getTimeIn100NSIntervals();
+
+
 				return;
 			}
 			if (areClose(centerPoint, handPoint, detectRange))
 			{
-				if (showOverlays)
+				// Don't do anything during the dead time
+				if (! blackout)
 				{
-					clearOverlay();
-					drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56);
+					state->set(MAGNIFYCENTER);
+					if (showOverlays)
+					{
+						clearOverlay();
+						drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56);
+					}
+					startTime = getTimeIn100NSIntervals();
 				}
-				state->set(MAGNIFYCENTER);
-				startTime = getTimeIn100NSIntervals();
 				return;
 			}
 		}
@@ -298,32 +303,82 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		{
 			if (areClose(centerPoint, handPoint, detectRange))
 			{
-				if (showOverlays)
+				// Don't do anything during the dead time
+				if (! blackout)
 				{
-					clearOverlay();
-					
-					int ulx;
-					int uly = (yRes/2) - (boxLarge/2);
-					if (hand == RIGHT)
+					state->set(MOVECENTER);
+					startTime = getTimeIn100NSIntervals();
+					if (showOverlays)
 					{
-						ulx = (xRes*3/4) - (boxLarge/2);
+						clearOverlay();
+
+						int ulx;
+						int uly = (yRes/2) - (boxLarge/2);
+						if (hand == RIGHT)
+						{
+							ulx = (xRes*3/4) - (boxLarge/2);
+						}
+						else
+						{
+							ulx = (xRes/4) - (boxLarge/2);
+						}
+						drawTrapezoid(ulx, uly, Q_TOP, 0);
+						drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+						drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+						drawTrapezoid(ulx, uly, Q_LEFT, 0);
+						drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+						drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 					}
-					else
-					{
-						ulx = (xRes/4) - (boxLarge/2);
-					}
-					drawTrapezoid(ulx, uly, Q_TOP, 0);
-					drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
-					drawTrapezoid(ulx, uly, Q_RIGHT, 0);
-					drawTrapezoid(ulx, uly, Q_LEFT, 0);
-					drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
-					drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 				}
-				state->set(MOVECENTER);
-				startTime = getTimeIn100NSIntervals();
+				//else
+				//{
+				//	// Draw some lock-on rectangles
+				//	int ulx;
+				//	int uly = (yRes/2) - (boxLarge/2);
+				//	if (hand == RIGHT)
+				//	{
+				//		ulx = (xRes*3/4) - (boxLarge/2);
+				//	}
+				//	else
+				//	{
+				//		ulx = (xRes/4) - (boxLarge/2);
+				//	}
+				//	drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+				//	drawRectangle(ulx-20, uly-20, boxLarge+40, boxLarge+40, 1);
+				//	drawRectangle(ulx-50, uly-50, boxLarge+100, boxLarge+100, 1);
+				//	drawRectangle(ulx-100, uly-100, boxLarge+200, boxLarge+200, 1);
+				//}
+
 				return;
 			}
 		}
+		/*if (showOverlays)
+		{
+			if (allowMagnifyGestures)
+			{
+				clearOverlay();
+				if (hand == RIGHT)
+				{
+					drawRectangle ((xRes*3/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+				}
+				else
+				{
+					drawRectangle ((xRes/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+				}
+				drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+			}
+			else
+			{
+				if (hand == RIGHT)
+				{
+					drawRectangle ((xRes*3/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+				}
+				else
+				{
+					drawRectangle ((xRes/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
+				}
+			}
+		}*/
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case BODYCENTER:
@@ -397,7 +452,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		}
 		// Specific direction
 		curQuadrant = findQuadrant(centerPoint, handPoint);
-		
+
 		// Place the direction arrows
 		if (curQuadrant == Q_TOP)
 		{
@@ -413,9 +468,10 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				{
 					ulx = (xRes/4) - (boxLarge/2);
 				}
+				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
 				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
-				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
-				drawTrapezoid(ulx, uly, Q_LEFT, 0);
+				/*drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 0);*/
 				drawTrapezoid(ulx, uly, Q_TOP, 1);				
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
@@ -449,9 +505,10 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				{
 					ulx = (xRes/4) - (boxLarge/2);
 				}
+				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
 				drawTrapezoid(ulx, uly, Q_TOP, 0);
-				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
-				drawTrapezoid(ulx, uly, Q_LEFT, 0);
+				/*drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 0);*/
 				drawTrapezoid(ulx, uly, Q_BOTTOM, 1);				
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
@@ -485,8 +542,9 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				{
 					ulx = (xRes/4) - (boxLarge/2);
 				}
-				drawTrapezoid(ulx, uly, Q_TOP, 0);
-				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
+				/*drawTrapezoid(ulx, uly, Q_TOP, 0);
+				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);*/
 				drawTrapezoid(ulx, uly, Q_LEFT, 0);
 				drawTrapezoid(ulx, uly, Q_RIGHT, 1);				
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
@@ -521,8 +579,9 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				{
 					ulx = (xRes/4) - (boxLarge/2);
 				}
-				drawTrapezoid(ulx, uly, Q_TOP, 0);
-				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
+				/*drawTrapezoid(ulx, uly, Q_TOP, 0);
+				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);*/
 				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
 				drawTrapezoid(ulx, uly, Q_LEFT, 1);
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
@@ -565,8 +624,8 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				}
 				drawTrapezoid(ulx, uly, Q_TOP, 0);
 				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
-				drawTrapezoid(ulx, uly, Q_RIGHT, 0);
-				drawTrapezoid(ulx, uly, Q_LEFT, 0);
+				/*drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+				drawTrapezoid(ulx, uly, Q_LEFT, 0);*/
 				drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
 				drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 			}
@@ -576,28 +635,28 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
-	// case MOVE:
-	// 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-	// 	centerPoint = spinePoint;
-	// 	if (hand == RIGHT)
-	// 	{
-	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-	// 		centerPoint.x += centerRightOver;
-	// 	}
-	// 	else
-	// 	{
-	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-	// 		centerPoint.x -= centerLeftOver;
-	// 	}
-	// 	// Back to MOVECENTER
-	// 	if (areClose(centerPoint, handPoint, detectRange))
-	// 	{
-	// 		state->set(MOVECENTER);
-	// 		startTime = getTimeIn100NSIntervals();
-	// 		return;
-	// 	}
-	// 	// Otherwise, keep looking (until the timeout)
-	// 	break;
+		// case MOVE:
+		// 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		// 	centerPoint = spinePoint;
+		// 	if (hand == RIGHT)
+		// 	{
+		// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+		// 		centerPoint.x += centerRightOver;
+		// 	}
+		// 	else
+		// 	{
+		// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+		// 		centerPoint.x -= centerLeftOver;
+		// 	}
+		// 	// Back to MOVECENTER
+		// 	if (areClose(centerPoint, handPoint, detectRange))
+		// 	{
+		// 		state->set(MOVECENTER);
+		// 		startTime = getTimeIn100NSIntervals();
+		// 		return;
+		// 	}
+		// 	// Otherwise, keep looking (until the timeout)
+		// 	break;
 	case MAGNIFYCENTER:
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
@@ -903,16 +962,16 @@ bool GestureDetector::areClose(Vector4 &obj1, Vector4 &obj2, double range)
 // This is less intuitive, so default to 2D, but sometimes we do want things to be 3D
 bool GestureDetector::areClose3D(Vector4 &obj1, Vector4 &obj2, double range)
 {
-  if ( 
-  	(abs(obj1.x - obj2.x) < range)
-  	&& (abs(obj1.y - obj2.y) < range)
-  	&& (abs(obj1.z - obj2.z) < range)
-  	)
-  {
-  	return true;
-  }
+	if ( 
+		(abs(obj1.x - obj2.x) < range)
+		&& (abs(obj1.y - obj2.y) < range)
+		&& (abs(obj1.z - obj2.z) < range)
+		)
+	{
+		return true;
+	}
 
-  return false;
+	return false;
 }
 
 // As usual, this is much uglier than it needs to be.  Blame Microsoft.
@@ -980,7 +1039,7 @@ Quadrant GestureDetector::findQuadrant(Vector4 center, Vector4 point)
 	// Verified that point - center is right (as opposed to center - point)
 	point.x = point.x - center.x;
 	point.y = point.y - center.y;
-	
+
 	// Cut the screen into two diagonal halves
 	if (point.y > point.x) 	// Top left
 	{

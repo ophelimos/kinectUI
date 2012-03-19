@@ -26,7 +26,7 @@ const FLOAT handsTogether = 0.1f;
 // 10000000 is about one second
 const long long oneSecondTimeout = 10000000;
 const long long timeout = 10*oneSecondTimeout;
-const long long blackoutTime = 3*oneSecondTimeout;
+const long long blackoutTime = 2*oneSecondTimeout;
 const FLOAT saluteOver = 0.25f;
 const FLOAT saluteUp = 0.15f;
 const FLOAT centerRightOver = 0.30f;
