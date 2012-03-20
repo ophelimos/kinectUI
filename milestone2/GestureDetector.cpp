@@ -23,7 +23,8 @@ GestureDetector::GestureDetector(HWND assocHwnd, int userId)
 	id = userId;
 	state = new GestureState(hwnd, userId);
 	state->set(OFF);
-	blackout = FALSE;
+	lockingOn = FALSE;
+	lockonStartTime = 0;
 }
 
 GestureDetector::~GestureDetector(void)
@@ -86,7 +87,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				// Reset magnification value
 				magnificationFloor = 0;
 				HideMagnifier();
-				clearOverlay();
+				clearAndHideOverlay();
 				state->set(OFF);
 			}
 		}
@@ -117,15 +118,11 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	curTime = getTimeIn100NSIntervals();
 	if ( (curTime - startTime) > timeout )
 	{
+		if (id == activeSkeleton)
+		{
+			clearAndHideOverlay();
+		}
 		state->set(OFF);
-	}
-	if ( (curTime - startTime) < blackoutTime )
-	{
-		blackout = TRUE;
-	}
-	else
-	{
-		blackout = FALSE;
 	}
 
 	// If they make the "cancel" gesture, stop recognizing gestures
@@ -135,7 +132,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	{
 		moveAmount_y = 0;
 		moveAmount_x = 0;
-		clearOverlay();
+		clearAndHideOverlay();
 		state->set(OFF);
 	}
 
@@ -152,6 +149,9 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	{
 		if (! amClicking)
 		{
+			// It'd be nice if the screen could flash at this
+			// point or something, but that doesn't seem entirely
+			// trivial with our current concept of overlays
 			mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
 			amClicking = TRUE;
 		}
@@ -269,92 +269,74 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			if (areClose(spinePoint, handPoint, detectRange))
 			{
 				// Lock-on
-				if (! blackout)
+				if (! lockingOn)
 				{
-					state->set(BODYCENTER);
-					startTime = getTimeIn100NSIntervals();
-					if (showOverlays)
-					{
-						drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
-						drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
-					}
-				}
-
-
-				return;
-			}
-			if (areClose(centerPoint, handPoint, detectRange))
-			{
-				// Don't do anything during the dead time
-				if (! blackout)
-				{
-					state->set(MAGNIFYCENTER);
+					lockingOn = TRUE;
+					lockonStartTime = getTimeIn100NSIntervals();
 					if (showOverlays)
 					{
 						clearOverlay();
-						drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56);
+						drawLockOn(xRes/2, yRes/2);
+						drawText ((xRes/3), (yRes/10), L"Locking on to Movement Mode", 56);
 					}
-					startTime = getTimeIn100NSIntervals();
+				}
+				else // We're locking on already
+				{
+					curTime = getTimeIn100NSIntervals();
+					if ((curTime - lockonStartTime) > lockonTime)
+					{
+						state->set(BODYCENTER);
+						startTime = getTimeIn100NSIntervals();
+						if (showOverlays)
+						{
+							clearOverlay();
+							drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
+							drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+						}
+					}
 				}
 				return;
 			}
-		}
-		else
-		{
-			if (areClose(centerPoint, handPoint, detectRange))
+			else if (areClose(centerPoint, handPoint, detectRange))
 			{
 				// Don't do anything during the dead time
-				if (! blackout)
+				if (! lockingOn)
 				{
-					state->set(MOVECENTER);
-					startTime = getTimeIn100NSIntervals();
+					lockingOn = TRUE;
+					lockonStartTime = getTimeIn100NSIntervals();
 					if (showOverlays)
 					{
 						clearOverlay();
-
-						int ulx;
-						int uly = (yRes/2) - (boxLarge/2);
 						if (hand == RIGHT)
 						{
-							ulx = (xRes*3/4) - (boxLarge/2);
+							drawLockOn(xRes*3/4, yRes/2);
 						}
 						else
 						{
-							ulx = (xRes/4) - (boxLarge/2);
+							drawLockOn(xRes/4, yRes/2);
 						}
-						drawTrapezoid(ulx, uly, Q_TOP, 0);
-						drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
-						drawTrapezoid(ulx, uly, Q_RIGHT, 0);
-						drawTrapezoid(ulx, uly, Q_LEFT, 0);
-						drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
-						drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+						drawText ((xRes/3), (yRes/10), L"Locking on to Magnification Mode", 56);
 					}
 				}
-				//else
-				//{
-				//	// Draw some lock-on rectangles
-				//	int ulx;
-				//	int uly = (yRes/2) - (boxLarge/2);
-				//	if (hand == RIGHT)
-				//	{
-				//		ulx = (xRes*3/4) - (boxLarge/2);
-				//	}
-				//	else
-				//	{
-				//		ulx = (xRes/4) - (boxLarge/2);
-				//	}
-				//	drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
-				//	drawRectangle(ulx-20, uly-20, boxLarge+40, boxLarge+40, 1);
-				//	drawRectangle(ulx-50, uly-50, boxLarge+100, boxLarge+100, 1);
-				//	drawRectangle(ulx-100, uly-100, boxLarge+200, boxLarge+200, 1);
-				//}
-
+				else
+				{
+					curTime = getTimeIn100NSIntervals();
+					if ((curTime - lockonStartTime) > lockonTime)
+					{
+						state->set(MAGNIFYCENTER);
+						if (showOverlays)
+						{
+							clearOverlay();
+							drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56);
+						}
+						startTime = getTimeIn100NSIntervals();
+					}
+				}
 				return;
 			}
-		}
-		/*if (showOverlays)
-		{
-			if (allowMagnifyGestures)
+			// Nothing hit, so we're not locking on
+			lockingOn = FALSE;
+			if (showOverlays)
 			{
 				clearOverlay();
 				if (hand == RIGHT)
@@ -367,8 +349,66 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				}
 				drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
 			}
-			else
+		}
+		else 		// Only movement gestures
+		{
+			if (areClose(centerPoint, handPoint, detectRange))
 			{
+				if (! lockingOn)
+				{
+					lockingOn = TRUE;
+					lockonStartTime = getTimeIn100NSIntervals();
+					if (showOverlays)
+					{
+						clearOverlay();
+						if (hand == RIGHT)
+						{
+							drawLockOn(xRes*3/4, yRes/2);
+						}
+						else
+						{
+							drawLockOn(xRes/4, yRes/2);
+						}
+						drawText ((xRes/3), (yRes/10), L"Locking on to Movement Mode", 56);
+					}
+				}
+				else
+				{ // We're locking on
+					curTime = getTimeIn100NSIntervals();
+					if ((curTime - lockonStartTime) > lockonTime)
+					{
+						state->set(MOVECENTER);
+						startTime = getTimeIn100NSIntervals();
+						if (showOverlays)
+						{
+							clearOverlay();
+
+							int ulx;
+							int uly = (yRes/2) - (boxLarge/2);
+							if (hand == RIGHT)
+							{
+								ulx = (xRes*3/4) - (boxLarge/2);
+							}
+							else
+							{
+								ulx = (xRes/4) - (boxLarge/2);
+							}
+							drawTrapezoid(ulx, uly, Q_TOP, 0);
+							drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+							// drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+							// drawTrapezoid(ulx, uly, Q_LEFT, 0);
+							drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+							drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+						}
+					}
+				}
+				return;
+			}
+			// We're not close to anything, so turn off the lockon
+			lockingOn = FALSE;
+			if (showOverlays)
+			{
+				clearOverlay();
 				if (hand == RIGHT)
 				{
 					drawRectangle ((xRes*3/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
@@ -378,15 +418,9 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 					drawRectangle ((xRes/4) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 0);
 				}
 			}
-		}*/
-		// Otherwise, keep looking (until the timeout)
+		}
 		break;
 	case BODYCENTER:
-		// Don't do anything during the dead time
-		if (blackout)
-		{
-			return;
-		}
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
 		if (hand == RIGHT)

@@ -74,12 +74,13 @@ RECT                overlayWindowRect;
 RECT                hostWindowRect;
 BOOL                isMagnifierOff = FALSE;
 BOOL                allowMagnifyGestures = FALSE;
-BOOL				showOverlays = TRUE;
+BOOL                showOverlays = TRUE;
 float               magnificationFloor = 0.0f;
 int                 distanceInMM = 0;
 BOOL                isFullScreen = FALSE;
-int					xRes = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-int					yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+int                 xRes = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+int                 yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+Color               backgroundColor = Color(255, 255, 255, 255);
 extern int			activeSkeleton;
 
 //
@@ -169,14 +170,15 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		}
         else if (wParam == VK_F6)
 		{
+			drawLockOn(xRes/2, yRes/2);
 			// int size = 200;
 			// drawRectangle ((xRes/2) - (size/2), (yRes/2) - (size/2), size, size, 0);
 			// drawRectangle (50,50,200,100,0);
-			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_TOP, 0);
-			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_BOTTOM, 0);
-			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_RIGHT, 1);
-			drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_LEFT, 1);
-			drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+			// drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_TOP, 0);
+			// drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_BOTTOM, 0);
+			// drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_RIGHT, 1);
+			// drawTrapezoid(xRes*3/4 - (boxLarge/2), yRes/2 - (boxLarge/2), Q_LEFT, 1);
+			// drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 		}
         else if (wParam == VK_F7)
 		{
@@ -197,7 +199,7 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		}
         else if (wParam == VK_F8)
 		{
-			clearOverlay();
+			clearAndHideOverlay();
 		}
 
 	case WM_SYSCOMMAND: 
@@ -574,7 +576,7 @@ void CALLBACK UpdateMagWindow(HWND /*hwnd*/, UINT /*uMsg*/, UINT_PTR /*idEvent*/
 			hideOverlaysButtonReleased = FALSE;
 			if (showOverlays)
 			{
-				clearOverlay();
+				clearAndHideOverlay();
 				showOverlays = FALSE;
 			}
 			else
@@ -706,19 +708,34 @@ void HideMagnifier()
     }
 }
 
+// Just clear the overlay, without hiding it (should help eliminate some flashing)
 void clearOverlay()
 {
 	if (IsWindowVisible(hwndOverlay))
 	{
 		Graphics g(hwndOverlay);    
-		SolidBrush brush(Color(255, 255, 255, 255));
-    
+		SolidBrush brush(backgroundColor);
 		g.FillRectangle( &brush, overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom );        
+	}
+
+	return;
+}
+
+// Hide the overlay
+void clearAndHideOverlay()
+{
+	if (IsWindowVisible(hwndOverlay))
+	{
+		Graphics g(hwndOverlay);    
+		SolidBrush brush(backgroundColor);
+		g.FillRectangle( &brush, overlayWindowRect.left, overlayWindowRect.top, overlayWindowRect.right, overlayWindowRect.bottom );
+		
 		ShowWindow(hwndOverlay, SW_HIDE);
 	}
 
 	return;
 }
+
 
 Status drawText(int x1, int y1, WCHAR string[], int size)
 {
@@ -734,12 +751,23 @@ Status drawText(int x1, int y1, WCHAR string[], int size)
 
 	// Create a solid background so the text is visible
 	SolidBrush backgroundBrush(Color(255, 0, 0, 0));
-	Rect backgroundRect(x1 - size, y1, size * strlen( (const char*) string) * 13, size);
+	Rect backgroundRect(x1 - size, y1, size * strlen( (const char*) string) * 15, size);
 	g.FillRectangle(&backgroundBrush, backgroundRect);
 
 	Status result = g.DrawString(string, -1, &font, pointF, &solidBrush);
     
 	return result;
+}
+
+// Draw lock on boxes around a point.
+void drawLockOn(int cx, int cy)
+{
+	const int numBoxes = 3;
+	const int boxSizes[numBoxes] = {240, 300, 400};
+	for (int i = 0; i < numBoxes; i++)
+	{
+		drawRectangle(cx - (boxSizes[i]/2), cy - (boxSizes[i]/2), boxSizes[i], boxSizes[i], 1);
+	}
 }
 
 void drawRectangle(int ulx, int uly, int width, int height, int c)

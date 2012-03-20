@@ -1006,7 +1006,7 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 			// If we're no longer tracking the active skeleton, we don't have an active skeleton
 			if ((i == activeSkeleton) && (SkeletonFrame.SkeletonData[i].eTrackingState != NUI_SKELETON_TRACKED))
 			{
-				clearOverlay();
+				clearAndHideOverlay();
 				moveAmount_x = 0;
 				moveAmount_y = 0;
 				gestureDetectors[activeSkeleton]->state->state = OFF;
@@ -1021,7 +1021,7 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 				// If we don't have an active skeleton, whatever's tracked becomes the active one
 				if (activeSkeleton == -1)
 				{
-					clearOverlay();
+					clearAndHideOverlay();
 					moveAmount_x = 0;
 					moveAmount_y = 0;
 					activeSkeleton = i;
