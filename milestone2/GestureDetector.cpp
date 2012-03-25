@@ -16,12 +16,11 @@ extern int xRes;
 extern int yRes;
 extern HWND hwndMag;
 
-GestureDetector::GestureDetector(HWND assocHwnd, int userId)
+GestureDetector::GestureDetector(int userId)
 {
 	startTime = getTimeIn100NSIntervals();
-	hwnd = assocHwnd;
 	id = userId;
-	state = new GestureState(hwnd, userId);
+	state = new GestureState(userId);
 	state->set(OFF);
 	lockingOn = FALSE;
 	lockonStartTime = 0;

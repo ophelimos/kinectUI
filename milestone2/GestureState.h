@@ -25,11 +25,10 @@ enum GestureStateEnum {
 class GestureState
 {
 public:
-	GestureState(HWND assocHwnd, int userId);
+	GestureState(int userId);
 	~GestureState(void);
 	
 	GestureStateEnum state;
-	HWND hwnd;
 	// This needs to be passed to the SkeletalViewer window, so it needs to be persistent
 	char* name;
 	GestureState& operator=(GestureState& other);

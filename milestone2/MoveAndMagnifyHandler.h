@@ -7,12 +7,11 @@ const DWORD movementTimeoutInMs = 100;
 class MoveAndMagnifyHandler
 {
 public:
-	MoveAndMagnifyHandler(HWND assocHwnd);
+	MoveAndMagnifyHandler();
 	~MoveAndMagnifyHandler(void);
 
 	static void CALLBACK TimerHandler(void* lpParameter, BOOLEAN TimerOrWaitFired);
 	HANDLE hMovementTimerQueue;
 	HANDLE hTimerHandle;
-	static HWND hwnd;
 };
 

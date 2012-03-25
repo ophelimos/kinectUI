@@ -27,7 +27,7 @@
 #define WM_USER_UPDATE_MOVEX            WM_USER+7
 #define WM_USER_UPDATE_MOVEY            WM_USER+8
 
-DWORD WINAPI StartSkeletalViewer(LPVOID lpParam);
+DWORD WINAPI StartKinectProcessing(LPVOID lpParam);
 
 class CSkeletalViewerApp
 {

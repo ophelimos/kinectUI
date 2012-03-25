@@ -81,7 +81,8 @@ BOOL                isFullScreen = FALSE;
 int                 xRes = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 int                 yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 Color               backgroundColor = Color(255, 255, 255, 255);
-extern int			activeSkeleton;
+extern int	    activeSkeleton;
+BOOL                showSkeletalViewer = TRUE;
 
 //
 // FUNCTION: WinMain()
@@ -95,16 +96,16 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 {
 	if (mode == KINECT_ONLY)
 	{
-		StartSkeletalViewer(hInstance);
+		StartKinectProcessing(hInstance);
 	} 
 	else if (mode != MAGNIFIER_ONLY)
 	{
 		// Start up a separate thread that handles the Kinect stuff
-		// StartSkeletalViewer(hInstance);
+		// StartKinectProcessing(hInstance);
 		CreateThread( 
 			NULL,                   // default security attributes
 			0,                      // use default stack size  
-			StartSkeletalViewer,       // thread function name
+			StartKinectProcessing,       // thread function name
 			hInstance,          // argument to thread function 
 			0,                      // use default creation flags 
 			NULL);   // returns the thread identifier

@@ -18,25 +18,59 @@
 // Global Variables:
 CSkeletalViewerApp  g_skeletalViewerApp;  // Application class
 int activeSkeleton = -1;		// The skeleton we care about for gestures
+extern BOOL showSkeletalViewer;		     // Whether or not we plan on starting up the skeletal viewer window in the first place
 GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
 BOOL                startWithDebugScreen = FALSE;
 extern int distanceInMM;
+CSkeletalViewerApp* skeletalViewer = NULL; // This is the skeletal viewer window.  If it's NULL, it doesn't exist.  If it's not, it does.
 
 #define INSTANCE_MUTEX_NAME L"SkeletalViewerInstanceCheck"
 
+
 //-------------------------------------------------------------------
-// StartSkeletalViewer
+// StartKinectProcessing
 //
-// Thread-starting funciton for the Skeletal Viewer
+// Do two things:
+// 1.  Start up Kinect processing
+// 2.  Start the Skeletal Viewer window
 //-------------------------------------------------------------------
-DWORD WINAPI StartSkeletalViewer(LPVOID lpParam)
+DWORD WINAPI StartKinectProcessing(LPVOID lpParam)
 {
-	// Make a CSkeletalViewerApp object
-	CSkeletalViewerApp* skeletalViewer = new CSkeletalViewerApp();
-	// Start up its window
-	HINSTANCE hInstance = static_cast<HINSTANCE>(lpParam);
-	DWORD returnval = skeletalViewer->DisplayWindow(hInstance, /* start maximized */ 3);
-	delete skeletalViewer;
+	// Start up portions that should be started up with or without
+	// the actual skeletal viewer window starting
+	
+	// Initialize KinectUI variables
+	distanceInMM = 0;
+	// There's no need to NULL out these things, since we're just always initializing them anyways.
+	// Start up gesture detectors
+	for (int ii = 0; ii < NUI_SKELETON_COUNT; ii++)
+	{
+		gestureDetectors[ii] = new GestureDetector(ii);
+	}
+	// Start up movement timer and handler
+	MoveAndMagnifyHandler* movementHandler = new MoveAndMagnifyHandler();
+
+	DWORD returnval;
+	if (showSkeletalViewer)
+	{
+		// Make a CSkeletalViewerApp object
+		skeletalViewer = new CSkeletalViewerApp();
+		// Start up its window
+		HINSTANCE hInstance = static_cast<HINSTANCE>(lpParam);
+		returnval = skeletalViewer->DisplayWindow(hInstance, /* start maximized */ 3);
+		// Now that it's finished, release the memory
+		delete skeletalViewer;
+		skeletalViewer = NULL;
+	}
+
+	// Free gesture detectors
+	for (int ii = 0; ii < NUI_SKELETON_COUNT; ii++)
+	{
+		delete gestureDetectors[ii];
+	}
+	// And the timer
+	delete movementHandler;
+	
 	return returnval;
 }
 
@@ -99,15 +133,6 @@ int CSkeletalViewerApp::DisplayWindow(HINSTANCE hInstance, int nCmdShow)
 	// Show window
 	ShowWindow(hWndApp,nCmdShow);
 
-	// Start up gesture detectors
-	for (int ii = 0; ii < NUI_SKELETON_COUNT; ii++)
-	{
-		gestureDetectors[ii] = new GestureDetector(hWndApp, ii);
-	}
-
-	// Start up movement timer and handler
-	MoveAndMagnifyHandler* movementHandler = new MoveAndMagnifyHandler(hWndApp);
-
 	// Main message loop:
 	while( GetMessage( &msg, NULL, 0, 0 ) ) 
 	{
@@ -123,14 +148,6 @@ int CSkeletalViewerApp::DisplayWindow(HINSTANCE hInstance, int nCmdShow)
 	}
 
 	CloseHandle( hMutex );
-
-	// Free gesture detectors
-	for (int ii = 0; ii < NUI_SKELETON_COUNT; ii++)
-	{
-		delete gestureDetectors[ii];
-	}
-	// And the timer
-	delete movementHandler;
 
 	return static_cast<int>(msg.wParam);
 }
@@ -148,13 +165,6 @@ CSkeletalViewerApp::CSkeletalViewerApp() : m_hInstance(NULL)
 
 	// Init Direct2D
 	D2D1CreateFactory( D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory );
-
-	// Initialize KinectUI variables
-	distanceInMM = 0;
-	for (int ii = 0; ii < NUI_SKELETON_COUNT; ii++)
-	{
-		gestureDetectors[ii] = NULL;
-	}
 }
 
 //-------------------------------------------------------------------
@@ -467,7 +477,8 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 
 	case WM_DESTROY:
 		// Uninitialize NUI
-		Nui_UnInit();
+		// Do *not* uninitialize NUI, because even if the Skeletal Viewer is gone, we want to still be receiving messages.
+		// Nui_UnInit();
 
 		// Other cleanup
 		ClearComboBox();

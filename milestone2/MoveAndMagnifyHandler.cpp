@@ -5,20 +5,15 @@
 // and throwing a ton of static variables into GestureDetector gets cumbersome
 
 extern float magnificationFloor;
-int hideSVWindowTimeout = 100;
+extern CSkeletalViewerApp* skeletalViewer;
 
 // Global variables, so GestureDetector can access them
 LONG moveAmount_x;
 LONG moveAmount_y;
 float magnifyAmount;
 
-// Stupid static declaration because TimerHandler needs to be static
-HWND MoveAndMagnifyHandler::hwnd = NULL;
-
-MoveAndMagnifyHandler::MoveAndMagnifyHandler(HWND assocHwnd)
+MoveAndMagnifyHandler::MoveAndMagnifyHandler()
 {
-	hwnd = assocHwnd;
-
 	// Initialize movement amounts to initially zero
 	magnifyAmount = 0.0;
 	moveAmount_x = 0;
@@ -55,32 +50,40 @@ MoveAndMagnifyHandler::~MoveAndMagnifyHandler(void)
 // Short function to handle moving and magnifying every timer interval
 void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN /*TimerOrWaitFired*/)
 {
-	// View skeletal viewer handler
-	// Stop us from immediately re-enabling after disabling
-	if (hideSVWindowTimeout < 30)
+	// Debug processing only necessary if the skeletal viewer exists
+	if (skeletalViewer != NULL)
 	{
-		hideSVWindowTimeout++;
-	}
-	else if (GetAsyncKeyState(VK_HOME))
-	{
-		if (IsWindowVisible(hwnd))
+		// View skeletal viewer handler
+		// Stop us from immediately re-enabling after disabling
+		static BOOL hideSVButtonReleased = TRUE;
+		if (GetAsyncKeyState(VK_HOME))
 		{
-			ShowWindow(hwnd, SW_HIDE);
+			if (hideSVButtonReleased)
+			{
+				hideSVButtonReleased = FALSE;
+				if (IsWindowVisible(skeletalViewer->m_hWnd))
+				{
+					ShowWindow(skeletalViewer->m_hWnd, SW_HIDE);
+				}
+				else
+				{
+					ShowWindow(skeletalViewer->m_hWnd, SW_SHOW);
+				}
+			}
 		}
 		else
 		{
-			ShowWindow(hwnd, SW_SHOW);
+			hideSVButtonReleased = TRUE;
 		}
-		hideSVWindowTimeout = 0;
-	}
 
-	// Print the amounts
-	::PostMessageW(hwnd, WM_USER_UPDATE_MOVEX, IDC_MOVEX, moveAmount_x);
-	::PostMessageW(hwnd, WM_USER_UPDATE_MOVEY, IDC_MOVEY, moveAmount_y);
-	// Unfortunately, it doesn't take floating-point values, so fix-point the thing
-	FLOAT magnifyAmountx100 = magnifyAmount * 100;
-	int magnifyAmountInt = (int) (magnifyAmountx100);
-	::PostMessageW(hwnd, WM_USER_UPDATE_MAGNIFICATION, IDC_MAGNIFY, magnifyAmountInt);
+		// Print the amounts
+		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MOVEX, IDC_MOVEX, moveAmount_x);
+		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MOVEY, IDC_MOVEY, moveAmount_y);
+		// Unfortunately, it doesn't take floating-point values, so fix-point the thing
+		FLOAT magnifyAmountx100 = magnifyAmount * 100;
+		int magnifyAmountInt = (int) (magnifyAmountx100);
+		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MAGNIFICATION, IDC_MAGNIFY, magnifyAmountInt);
+	}
 
 	// Adjust magnification
 	magnificationFloor += magnifyAmount;

@@ -63,7 +63,7 @@ class GestureDetector
 private:
 
 public:
-	GestureDetector(HWND assocHwnd, int userId);
+	GestureDetector(int userId);
 	~GestureDetector(void);
 
 	/* Class Variables */
@@ -86,7 +86,4 @@ public:
 	void GestureDetector::getDifference(Vector4 now, Vector4 prev, FLOAT& displacement_x, FLOAT& displacement_y);
 	bool GestureDetector::areClose3D(Vector4 &obj1, Vector4 &obj2, double range);
 	Quadrant GestureDetector::findQuadrant(Vector4 center, Vector4 point);
-
-	/* Necessary for debugging */
-	HWND hwnd;
 };

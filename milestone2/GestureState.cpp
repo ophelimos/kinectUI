@@ -5,11 +5,11 @@
 #include "Magnifier.h"
 
 extern int activeSkeleton;
+extern CSkeletalViewerApp* skeletalViewer;
 
-GestureState::GestureState(HWND assocHwnd, int userId)
+GestureState::GestureState(int userId)
 {
 	state = OFF;
-	hwnd = assocHwnd;
 	name = NULL;
 	id = userId;
 	updateDebug();
@@ -43,6 +43,12 @@ void GestureState::set(GestureStateEnum newState)
 // Send the state to the output window, which unfortunately is an absolute pain to do.
 void GestureState::updateDebug()
 {
+	// If the skeletal viewer is off, don't do anything
+	if (skeletalViewer == NULL)
+	{
+		return;
+	}
+	
 	// Transform the state name into a string
 	char* statename;
 	switch(state)
@@ -107,11 +113,11 @@ void GestureState::updateDebug()
 	// Actually post the message to the output
 	if (id == activeSkeleton)
 	{
-		::PostMessageW(hwnd, WM_USER_UPDATE_STATE, IDC_STATE, longptr);
+		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_STATE, IDC_STATE, longptr);
 	}
 	else
 	{
-		::PostMessageW(hwnd, WM_USER_UPDATE_STATE, IDC_STATE2, longptr);
+		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_STATE, IDC_STATE2, longptr);
 	}
 
 	// Delete the old string, keep the new one
