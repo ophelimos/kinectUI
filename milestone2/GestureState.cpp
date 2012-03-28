@@ -6,6 +6,7 @@
 
 extern int activeSkeleton;
 extern CSkeletalViewerApp* skeletalViewer;
+extern BOOL GUI_On;
 
 GestureState::GestureState(int userId)
 {
@@ -44,11 +45,12 @@ void GestureState::set(GestureStateEnum newState)
 void GestureState::updateDebug()
 {
 	// If the skeletal viewer is off, don't do anything
-	if (skeletalViewer == NULL)
+	if (! GUI_On)
 	{
 		return;
 	}
-	
+	skeletalViewer->increment_num_GUIers();
+
 	// Transform the state name into a string
 	char* statename;
 	switch(state)
@@ -65,12 +67,12 @@ void GestureState::updateDebug()
 	case BODYCENTER:
 		statename = _strdup("BODYCENTER");
 		break;
-	//case MAGNIFY:
-	//	statename = _strdup("MAGNIFY");
-	//	break;
-	// case MOVE:
-	// 	statename = _strdup("MOVE");
-	// 	break;
+		//case MAGNIFY:
+		//	statename = _strdup("MAGNIFY");
+		//	break;
+		// case MOVE:
+		// 	statename = _strdup("MOVE");
+		// 	break;
 	case MOVECENTER:
 		statename = _strdup("MOVECENTER");
 		break;
@@ -127,4 +129,6 @@ void GestureState::updateDebug()
 		free(name);
 	}
 	name = statename;
+
+	skeletalViewer->decrement_num_GUIers();
 }

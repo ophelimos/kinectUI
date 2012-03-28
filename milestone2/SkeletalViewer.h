@@ -13,6 +13,7 @@
 #include "DrawDevice.h"
 #include "GestureDetector.h"
 #include "MoveAndMagnifyHandler.h"
+#include "NuiImpl.h"
 
 #define SZ_APPDLG_WINDOW_CLASS          _T("SkeletalViewerAppDlgWndClass")
 #define WM_USER_UPDATE_FPS              WM_USER
@@ -31,32 +32,36 @@ DWORD WINAPI StartKinectProcessing(LPVOID lpParam);
 
 class CSkeletalViewerApp
 {
+	/* Since the classes are way too tightly integrated */
+	friend class NuiImpl;
 public:
-	CSkeletalViewerApp();
+	CSkeletalViewerApp(NuiImpl* nui_impl);
 	~CSkeletalViewerApp();
-	HRESULT                 Nui_Init( );
-	HRESULT                 Nui_Init( OLECHAR * instanceName );
-	void                    Nui_UnInit( );
-	void                    Nui_GotDepthAlert( );
-	void                    Nui_GotColorAlert( );
-	void                    Nui_GotSkeletonAlert( );
-	void                    Nui_Zero();
+	/* HRESULT                 Nui_Init( ); */
+	/* HRESULT                 Nui_Init( OLECHAR * instanceName ); */
+	/* void                    Nui_UnInit( ); */
+	/* void                    Nui_GotDepthAlert( ); */
+	/* void                    Nui_GotColorAlert( ); */
+	/* void                    Nui_GotSkeletonAlert( ); */
+	/* void                    Nui_Zero(); */
+	void                    SV_Zero();
+	HRESULT                 SV_Init();
+	void                    SV_UnInit( );
 	void                    Nui_BlankSkeletonScreen( HWND hWnd, bool getDC );
 	void                    Nui_DoDoubleBuffer(HWND hWnd,HDC hDC);
 	void                    Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor );
 	void                    Nui_DrawSkeletonId( NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor );
 
 	void                    Nui_DrawSkeletonSegment( NUI_SKELETON_DATA * pSkel, int numJoints, ... );
-	void                    Nui_EnableSeatedTracking(bool seated);
-	void                    Nui_SetApplicationTracking(bool applicationTracks);
-	void                    Nui_SetTrackedSkeletons(int skel1, int skel2);
+	/* void                    Nui_SetApplicationTracking(bool applicationTracks); */
+	/* void                    Nui_SetTrackedSkeletons(int skel1, int skel2); */
 
 	RGBQUAD                 Nui_ShortToQuad_Depth( USHORT s );
 
 	static LRESULT CALLBACK MessageRouter(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK        WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-	static void CALLBACK    Nui_StatusProcThunk(HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName, void* pUserData);
-	void CALLBACK           Nui_StatusProc( HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName );
+	/* static void CALLBACK    Nui_StatusProcThunk(HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName, void* pUserData); */
+	/* void CALLBACK           Nui_StatusProc( HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName ); */
 
 	HWND m_hWnd;
 	HINSTANCE               m_hInstance;
@@ -66,6 +71,12 @@ public:
 	/* Added for remote startup */
 	int CSkeletalViewerApp::DisplayWindow(HINSTANCE hInstance, int nCmdShow);
 
+	/* Mutex functions */
+	/* Technically, this could be made into its own class with
+	 * overloaded operators, but this is easier for right now. */
+	int CSkeletalViewerApp::decrement_num_GUIers( );
+	int CSkeletalViewerApp::increment_num_GUIers( );
+
 private:
 	void UpdateComboBox();
 	void ClearComboBox();
@@ -73,14 +84,15 @@ private:
 	void UpdateTrackingComboBoxes();
 	void UpdateTrackingFromComboBoxes();
 
+	NuiImpl*                nui;
 	bool                    m_fUpdatingUi;
 	TCHAR                   m_szAppTitle[256];    // Application title
-	static DWORD WINAPI     Nui_ProcessThread(LPVOID pParam);
-	DWORD WINAPI            Nui_ProcessThread();
+	/* static DWORD WINAPI     Nui_ProcessThread(LPVOID pParam); */
+	/* DWORD WINAPI            Nui_ProcessThread(); */
 
 	// Current kinect
-	INuiSensor *            m_pNuiSensor;
-	BSTR                    m_instanceId;
+	/* INuiSensor *            m_pNuiSensor; */
+	/* BSTR                    m_instanceId; */
 
 	// Draw devices
 	DrawDevice *            m_pDrawDepth;
@@ -88,12 +100,12 @@ private:
 	ID2D1Factory *          m_pD2DFactory;
 
 	// thread handling
-	HANDLE        m_hThNuiProcess;
-	HANDLE        m_hEvNuiProcessStop;
+	/* HANDLE        m_hThNuiProcess; */
+	/* HANDLE        m_hEvNuiProcessStop; */
 
-	HANDLE        m_hNextDepthFrameEvent;
-	HANDLE        m_hNextColorFrameEvent;
-	HANDLE        m_hNextSkeletonEvent;
+	/* HANDLE        m_hNextDepthFrameEvent; */
+	/* HANDLE        m_hNextColorFrameEvent; */
+	/* HANDLE        m_hNextSkeletonEvent; */
 	HANDLE        m_pDepthStreamHandle;
 	HANDLE        m_pVideoStreamHandle;
 	HFONT         m_hFontFPS;
@@ -106,19 +118,23 @@ private:
 	int           m_PensTotal;
 	POINT         m_Points[NUI_SKELETON_POSITION_COUNT];
 	RGBQUAD       m_rgbWk[640*480];
-	DWORD         m_LastSkeletonFoundTime;
+	/* DWORD         m_LastSkeletonFoundTime; */
 	bool          m_bScreenBlanked;
-	bool          m_bAppTracking;
-	int           m_DepthFramesTotal;
-	DWORD         m_LastDepthFPStime;
-	int           m_LastDepthFramesTotal;
-	DWORD         m_SkeletonIds[NUI_SKELETON_COUNT];
-	DWORD         m_TrackedSkeletonIds[NUI_SKELETON_MAX_TRACKED_COUNT];
+	/* bool          m_bAppTracking; */
+	/* int           m_DepthFramesTotal; */
+	/* DWORD         m_LastDepthFPStime; */
+	/* int           m_LastDepthFramesTotal; */
+	/* DWORD         m_SkeletonIds[NUI_SKELETON_COUNT]; */
+	/* DWORD         m_TrackedSkeletonIds[NUI_SKELETON_MAX_TRACKED_COUNT]; */
 	ULONG_PTR     m_GdiplusToken;
 
 	// Draw a box around a skeletal position
 	BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, FLOAT radius);
-	void CSkeletalViewerApp::DrawX(Vector4& s_point);	
+	void CSkeletalViewerApp::DrawX(Vector4& s_point);
+
+	// Mutex variables
+	int num_GUIers;
+	HANDLE num_GUIers_mutex;
 };
 
 

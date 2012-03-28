@@ -7,10 +7,16 @@
 extern float magnificationFloor;
 extern CSkeletalViewerApp* skeletalViewer;
 
+// Another method of quitting
+HANDLE quitMutex;
+
 // Global variables, so GestureDetector can access them
 LONG moveAmount_x;
 LONG moveAmount_y;
 float magnifyAmount;
+
+// Mutex
+extern BOOL GUI_On;
 
 MoveAndMagnifyHandler::MoveAndMagnifyHandler()
 {
@@ -36,6 +42,10 @@ MoveAndMagnifyHandler::MoveAndMagnifyHandler()
 	{
 		exit(1);
 	}
+
+	// Create the mutex for waiting, and initially own it.
+	quitMutex = CreateMutex(NULL, FALSE, NULL);
+	WaitForSingleObject(quitMutex, INFINITE);
 }
 
 MoveAndMagnifyHandler::~MoveAndMagnifyHandler(void)
@@ -51,7 +61,7 @@ MoveAndMagnifyHandler::~MoveAndMagnifyHandler(void)
 void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN /*TimerOrWaitFired*/)
 {
 	// Debug processing only necessary if the skeletal viewer exists
-	if (skeletalViewer != NULL)
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
 	{
 		// View skeletal viewer handler
 		// Stop us from immediately re-enabling after disabling
@@ -83,6 +93,12 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 		FLOAT magnifyAmountx100 = magnifyAmount * 100;
 		int magnifyAmountInt = (int) (magnifyAmountx100);
 		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MAGNIFICATION, IDC_MAGNIFY, magnifyAmountInt);
+		skeletalViewer->decrement_num_GUIers();
+	}
+
+	if (GetAsyncKeyState(VK_F4))
+	{
+		ReleaseMutex(quitMutex);
 	}
 
 	// Adjust magnification

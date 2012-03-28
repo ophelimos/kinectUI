@@ -245,6 +245,7 @@
     <ClInclude Include="GestureState.h" />
     <ClInclude Include="Magnifier.h" />
     <ClInclude Include="MoveAndMagnifyHandler.h" />
+    <ClInclude Include="NuiImpl.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SkeletalViewer.h" />
     <ClInclude Include="stdafx.h" />

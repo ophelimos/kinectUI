@@ -13,6 +13,7 @@
 #include <mmsystem.h>
 #include <assert.h>
 #include <strsafe.h>
+#include "NuiImpl.h"
 
 // Globals
 extern int distanceInMM;
@@ -21,53 +22,48 @@ extern GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
 extern BOOL allowMagnifyGestures;
 extern LONG moveAmount_x;
 extern LONG moveAmount_y;
+// The important one for splitting the functionality
+extern CSkeletalViewerApp* skeletalViewer;
+extern BOOL showSkeletalViewer;
 
-static const COLORREF g_JointColorTable[NUI_SKELETON_POSITION_COUNT] = 
+// Variables used to deal with the problem that threads might be in a
+// GUI section when the GUI exits, and so we need to preserve the GUI
+// until all the events trying to use it have finished
+// (readers-writers problem, with a writer preference)
+extern BOOL GUI_On;
+extern int num_GUIers;
+extern HANDLE num_GUIers_mutex;
+
+
+//-------------------------------------------------------------------
+// Constructor
+//-------------------------------------------------------------------
+NuiImpl::NuiImpl()
 {
-	RGB(169, 176, 155), // NUI_SKELETON_POSITION_HIP_CENTER
-	RGB(169, 176, 155), // NUI_SKELETON_POSITION_SPINE
-	RGB(168, 230, 29),  // NUI_SKELETON_POSITION_SHOULDER_CENTER
-	RGB(200, 0,   0),   // NUI_SKELETON_POSITION_HEAD
-	RGB(79,  84,  33),  // NUI_SKELETON_POSITION_SHOULDER_LEFT
-	RGB(84,  33,  42),  // NUI_SKELETON_POSITION_ELBOW_LEFT
-	RGB(255, 126, 0),   // NUI_SKELETON_POSITION_WRIST_LEFT
-	RGB(215,  86, 0),   // NUI_SKELETON_POSITION_HAND_LEFT
-	RGB(33,  79,  84),  // NUI_SKELETON_POSITION_SHOULDER_RIGHT
-	RGB(33,  33,  84),  // NUI_SKELETON_POSITION_ELBOW_RIGHT
-	RGB(77,  109, 243), // NUI_SKELETON_POSITION_WRIST_RIGHT
-	RGB(37,   69, 243), // NUI_SKELETON_POSITION_HAND_RIGHT
-	RGB(77,  109, 243), // NUI_SKELETON_POSITION_HIP_LEFT
-	RGB(69,  33,  84),  // NUI_SKELETON_POSITION_KNEE_LEFT
-	RGB(229, 170, 122), // NUI_SKELETON_POSITION_ANKLE_LEFT
-	RGB(255, 126, 0),   // NUI_SKELETON_POSITION_FOOT_LEFT
-	RGB(181, 165, 213), // NUI_SKELETON_POSITION_HIP_RIGHT
-	RGB(71, 222,  76),  // NUI_SKELETON_POSITION_KNEE_RIGHT
-	RGB(245, 228, 156), // NUI_SKELETON_POSITION_ANKLE_RIGHT
-	RGB(77,  109, 243)  // NUI_SKELETON_POSITION_FOOT_RIGHT
-};
+	m_pNuiSensor = NULL;
+	// Even though this is a BSTR, you can treat it like a char*
+	m_instanceId = NULL;
+	Nui_Zero();
+	NuiSetDeviceStatusCallback( &NuiImpl::Nui_StatusProcThunk, this );
+	Nui_Init();
+}
 
-static const COLORREF g_SkeletonColors[NUI_SKELETON_COUNT] =
+//-------------------------------------------------------------------
+// Destructor
+//-------------------------------------------------------------------
+NuiImpl::~NuiImpl()
 {
-	RGB( 255, 0, 0),
-	RGB( 0, 255, 0 ),
-	RGB( 64, 255, 255 ),
-	RGB( 255, 255, 64 ),
-	RGB( 255, 64, 255 ),
-	RGB( 128, 128, 255 )
-};
-
-//lookups for color tinting based on player index
-static const int g_IntensityShiftByPlayerR[] = { 1, 2, 0, 2, 0, 0, 2, 0 };
-static const int g_IntensityShiftByPlayerG[] = { 1, 2, 2, 0, 2, 0, 0, 1 };
-static const int g_IntensityShiftByPlayerB[] = { 1, 0, 2, 2, 0, 2, 0, 2 };
-
+	Nui_UnInit();
+	Nui_Zero();
+	SysFreeString(m_instanceId);
+}
 
 //-------------------------------------------------------------------
 // Nui_Zero
 //
 // Zero out member variables
 //-------------------------------------------------------------------
-void CSkeletalViewerApp::Nui_Zero()
+void NuiImpl::Nui_Zero()
 {
 	if (m_pNuiSensor)
 	{
@@ -81,26 +77,28 @@ void CSkeletalViewerApp::Nui_Zero()
 	m_pVideoStreamHandle = NULL;
 	m_hThNuiProcess = NULL;
 	m_hEvNuiProcessStop = NULL;
-	ZeroMemory(m_Pen,sizeof(m_Pen));
-	m_SkeletonDC = NULL;
-	m_SkeletonBMP = NULL;
-	m_SkeletonOldObj = NULL;
-	m_PensTotal = 6;
-	ZeroMemory(m_Points,sizeof(m_Points));
 	m_LastSkeletonFoundTime = 0;
-	m_bScreenBlanked = false;
 	m_DepthFramesTotal = 0;
 	m_LastDepthFPStime = 0;
 	m_LastDepthFramesTotal = 0;
-	m_pDrawDepth = NULL;
-	m_pDrawColor = NULL;
-	ZeroMemory(m_SkeletonIds,sizeof(m_SkeletonIds));
-	ZeroMemory(m_TrackedSkeletonIds,sizeof(m_SkeletonIds));
+	// The ZeroMemory versions cause memory corruption.  The loop
+	// versions don't.  I don't understand why, but avoiding
+	// memory corruption is a good thing.
+	// ZeroMemory(m_SkeletonIds,sizeof(m_SkeletonIds));
+	for (int i = 0; i < NUI_SKELETON_COUNT; i++)
+	{
+		m_SkeletonIds[i] = 0;
+	}
+	// ZeroMemory(m_TrackedSkeletonIds,sizeof(m_SkeletonIds));
+	for (int i = 0; i < NUI_SKELETON_MAX_TRACKED_COUNT; i++)
+	{
+		m_TrackedSkeletonIds[i] = 0;
+	}
 }
 
-void CALLBACK CSkeletalViewerApp::Nui_StatusProcThunk( HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName, void * pUserData )
+void CALLBACK NuiImpl::Nui_StatusProcThunk( HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* uniqueDeviceName, void * pUserData )
 {
-	reinterpret_cast<CSkeletalViewerApp *>(pUserData)->Nui_StatusProc( hrStatus, instanceName, uniqueDeviceName );
+	reinterpret_cast<NuiImpl *>(pUserData)->Nui_StatusProc( hrStatus, instanceName, uniqueDeviceName );
 }
 
 //-------------------------------------------------------------------
@@ -108,10 +106,14 @@ void CALLBACK CSkeletalViewerApp::Nui_StatusProcThunk( HRESULT hrStatus, const O
 //
 // Callback to handle Kinect status changes
 //-------------------------------------------------------------------
-void CALLBACK CSkeletalViewerApp::Nui_StatusProc( HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* /*uniqueDeviceName*/ )
+void CALLBACK NuiImpl::Nui_StatusProc( HRESULT hrStatus, const OLECHAR* instanceName, const OLECHAR* /*uniqueDeviceName*/ )
 {
-	// Update UI
-	PostMessageW( m_hWnd, WM_USER_UPDATE_COMBO, 0, 0 );
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
+	{
+		// Update UI
+		PostMessageW( skeletalViewer->m_hWnd, WM_USER_UPDATE_COMBO, 0, 0 );
+		skeletalViewer->decrement_num_GUIers();
+	}
 
 	if( SUCCEEDED(hrStatus) )
 	{
@@ -133,6 +135,12 @@ void CALLBACK CSkeletalViewerApp::Nui_StatusProc( HRESULT hrStatus, const OLECHA
 		{
 			Nui_UnInit();
 			Nui_Zero();
+			if (GUI_On && skeletalViewer->increment_num_GUIers())
+			{
+				skeletalViewer->SV_UnInit();				
+				skeletalViewer->SV_Zero();
+				skeletalViewer->decrement_num_GUIers();
+			}
 		}
 	}
 }
@@ -142,12 +150,16 @@ void CALLBACK CSkeletalViewerApp::Nui_StatusProc( HRESULT hrStatus, const OLECHA
 //
 // Initialize Kinect by instance name
 //-------------------------------------------------------------------
-HRESULT CSkeletalViewerApp::Nui_Init( OLECHAR *instanceName )
+HRESULT NuiImpl::Nui_Init( OLECHAR *instanceName )
 {
 	// Generic creation failure
 	if ( NULL == instanceName )
 	{
-		MessageBoxResource( IDS_ERROR_NUICREATE, MB_OK | MB_ICONHAND );
+		if (GUI_On && skeletalViewer->increment_num_GUIers())
+		{
+			skeletalViewer->MessageBoxResource( IDS_ERROR_NUICREATE, MB_OK | MB_ICONHAND );
+			skeletalViewer->decrement_num_GUIers();
+		}
 		return E_FAIL;
 	}
 
@@ -156,7 +168,11 @@ HRESULT CSkeletalViewerApp::Nui_Init( OLECHAR *instanceName )
 	// Generic creation failure
 	if ( FAILED(hr) )
 	{
-		MessageBoxResource( IDS_ERROR_NUICREATE, MB_OK | MB_ICONHAND );
+		if (GUI_On && skeletalViewer->increment_num_GUIers())
+		{
+			skeletalViewer->MessageBoxResource( IDS_ERROR_NUICREATE, MB_OK | MB_ICONHAND );
+			skeletalViewer->decrement_num_GUIers();
+		}
 		return hr;
 	}
 
@@ -172,11 +188,12 @@ HRESULT CSkeletalViewerApp::Nui_Init( OLECHAR *instanceName )
 //
 // Initialize Kinect
 //-------------------------------------------------------------------
-HRESULT CSkeletalViewerApp::Nui_Init( )
+HRESULT NuiImpl::Nui_Init( )
 {
+	// Clean state the class
+	Nui_Zero();
+
 	HRESULT  hr;
-	RECT     rc;
-	bool     result;
 
 	if ( !m_pNuiSensor )
 	{
@@ -187,42 +204,35 @@ HRESULT CSkeletalViewerApp::Nui_Init( )
 			return hr;
 		}
 
+		// Why free a string if we haven't got an instanceId yet?
 		SysFreeString(m_instanceId);
 
 		m_instanceId = m_pNuiSensor->NuiDeviceConnectionId();
 	}
 
+	// Start up the skeletal viewer at this point
+	if (skeletalViewer == NULL)
+	{
+		if (showSkeletalViewer)
+		{
+			// Make a CSkeletalViewerApp object
+			skeletalViewer = new CSkeletalViewerApp(this);
+			HRESULT hr = skeletalViewer->SV_Init();
+			if (FAILED(hr))
+			{
+				skeletalViewer->MessageBoxResource( IDS_ERROR_NUICREATE, MB_OK | MB_ICONHAND );
+				exit (1);
+			}
+		}
+	}
+	else
+	{
+		skeletalViewer->SV_Init();
+	}
+
 	m_hNextDepthFrameEvent = CreateEvent( NULL, TRUE, FALSE, NULL );
 	m_hNextColorFrameEvent = CreateEvent( NULL, TRUE, FALSE, NULL );
 	m_hNextSkeletonEvent = CreateEvent( NULL, TRUE, FALSE, NULL );
-
-	GetWindowRect( GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), &rc );  
-	HDC hdc = GetDC( GetDlgItem( m_hWnd, IDC_SKELETALVIEW) );
-
-	int width = rc.right - rc.left;
-	int height = rc.bottom - rc.top;
-
-	m_SkeletonBMP = CreateCompatibleBitmap( hdc, width, height );
-	m_SkeletonDC = CreateCompatibleDC( hdc );
-
-	ReleaseDC(GetDlgItem(m_hWnd,IDC_SKELETALVIEW), hdc );
-	m_SkeletonOldObj = SelectObject( m_SkeletonDC, m_SkeletonBMP );
-
-	m_pDrawDepth = new DrawDevice( );
-	result = m_pDrawDepth->Initialize( GetDlgItem( m_hWnd, IDC_DEPTHVIEWER ), m_pD2DFactory, 320, 240, 320 * 4 );
-	if ( !result )
-	{
-		MessageBoxResource( IDS_ERROR_DRAWDEVICE, MB_OK | MB_ICONHAND );
-		return E_FAIL;
-	}
-
-	m_pDrawColor = new DrawDevice( );
-	result = m_pDrawColor->Initialize( GetDlgItem( m_hWnd, IDC_VIDEOVIEW ), m_pD2DFactory, 640, 480, 640 * 4 );
-	if ( !result )
-	{
-		MessageBoxResource( IDS_ERROR_DRAWDEVICE, MB_OK | MB_ICONHAND );
-		return E_FAIL;
-	}
 
 	DWORD nuiFlags = NUI_INITIALIZE_FLAG_USES_DEPTH_AND_PLAYER_INDEX | NUI_INITIALIZE_FLAG_USES_SKELETON |  NUI_INITIALIZE_FLAG_USES_COLOR;
 	hr = m_pNuiSensor->NuiInitialize( nuiFlags );
@@ -236,23 +246,21 @@ HRESULT CSkeletalViewerApp::Nui_Init( )
 	{
 		if ( E_NUI_DEVICE_IN_USE == hr )
 		{
-			MessageBoxResource( IDS_ERROR_IN_USE, MB_OK | MB_ICONHAND );
+			if (GUI_On && skeletalViewer->increment_num_GUIers())
+			{
+				skeletalViewer->MessageBoxResource( IDS_ERROR_IN_USE, MB_OK | MB_ICONHAND );
+				skeletalViewer->decrement_num_GUIers();
+			}
 		}
 		else
 		{
-			MessageBoxResource( IDS_ERROR_NUIINIT, MB_OK | MB_ICONHAND );
+			if (GUI_On && skeletalViewer->increment_num_GUIers())
+			{
+				skeletalViewer->MessageBoxResource( IDS_ERROR_NUIINIT, MB_OK | MB_ICONHAND );
+				skeletalViewer->decrement_num_GUIers();
+			}
 		}
 		return hr;
-	}
-
-	if ( HasSkeletalEngine( m_pNuiSensor ) )
-	{
-		hr = m_pNuiSensor->NuiSkeletonTrackingEnable( m_hNextSkeletonEvent, 0 );
-		if( FAILED( hr ) )
-		{
-			MessageBoxResource( IDS_ERROR_SKELETONTRACKING, MB_OK | MB_ICONHAND );
-			return hr;
-		}
 	}
 
 	hr = m_pNuiSensor->NuiImageStreamOpen(
@@ -265,7 +273,11 @@ HRESULT CSkeletalViewerApp::Nui_Init( )
 
 	if ( FAILED( hr ) )
 	{
-		MessageBoxResource( IDS_ERROR_VIDEOSTREAM, MB_OK | MB_ICONHAND );
+		if (GUI_On && skeletalViewer->increment_num_GUIers())
+		{
+			skeletalViewer->MessageBoxResource( IDS_ERROR_VIDEOSTREAM, MB_OK | MB_ICONHAND );
+			skeletalViewer->decrement_num_GUIers();
+		}
 		return hr;
 	}
 
@@ -279,8 +291,26 @@ HRESULT CSkeletalViewerApp::Nui_Init( )
 
 	if ( FAILED( hr ) )
 	{
-		MessageBoxResource(IDS_ERROR_DEPTHSTREAM, MB_OK | MB_ICONHAND);
+		if (GUI_On && skeletalViewer->increment_num_GUIers())
+		{
+			skeletalViewer->MessageBoxResource(IDS_ERROR_DEPTHSTREAM, MB_OK | MB_ICONHAND);
+			skeletalViewer->decrement_num_GUIers();
+		}
 		return hr;
+	}
+
+	if ( HasSkeletalEngine( m_pNuiSensor ) )
+	{
+		hr = m_pNuiSensor->NuiSkeletonTrackingEnable( m_hNextSkeletonEvent, 0 );
+		if( FAILED( hr ) )
+		{
+			if (GUI_On && skeletalViewer->increment_num_GUIers())
+			{
+				skeletalViewer->MessageBoxResource( IDS_ERROR_SKELETONTRACKING, MB_OK | MB_ICONHAND );
+				skeletalViewer->decrement_num_GUIers();
+			}
+			return hr;
+		}
 	}
 
 	// Start the Nui processing thread
@@ -295,27 +325,8 @@ HRESULT CSkeletalViewerApp::Nui_Init( )
 //
 // Uninitialize Kinect
 //-------------------------------------------------------------------
-void CSkeletalViewerApp::Nui_UnInit( )
+void NuiImpl::Nui_UnInit( )
 {
-	SelectObject( m_SkeletonDC, m_SkeletonOldObj );
-	DeleteDC( m_SkeletonDC );
-	DeleteObject( m_SkeletonBMP );
-
-	if ( NULL != m_Pen[0] )
-	{
-		for ( int i = 0; i < NUI_SKELETON_COUNT; i++ )
-		{
-			DeleteObject( m_Pen[i] );
-		}
-		ZeroMemory( m_Pen, sizeof(m_Pen) );
-	}
-
-	if ( NULL != m_hFontSkeletonId )
-	{
-		DeleteObject( m_hFontSkeletonId );
-		m_hFontSkeletonId = NULL;
-	}
-
 	// Stop the Nui processing thread
 	if ( NULL != m_hEvNuiProcessStop )
 	{
@@ -357,17 +368,16 @@ void CSkeletalViewerApp::Nui_UnInit( )
 		m_pNuiSensor = NULL;
 	}
 
-	// clean up graphics
-	delete m_pDrawDepth;
-	m_pDrawDepth = NULL;
-
-	delete m_pDrawColor;
-	m_pDrawColor = NULL;    
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
+	{
+		skeletalViewer->SV_UnInit();
+		skeletalViewer->decrement_num_GUIers();
+	}
 }
 
-DWORD WINAPI CSkeletalViewerApp::Nui_ProcessThread(LPVOID pParam)
+DWORD WINAPI NuiImpl::Nui_ProcessThread(LPVOID pParam)
 {
-	CSkeletalViewerApp *pthis = (CSkeletalViewerApp *) pParam;
+	NuiImpl *pthis = (NuiImpl *) pParam;
 	return pthis->Nui_ProcessThread();
 }
 
@@ -376,7 +386,7 @@ DWORD WINAPI CSkeletalViewerApp::Nui_ProcessThread(LPVOID pParam)
 //
 // Thread to handle Kinect processing
 //-------------------------------------------------------------------
-DWORD WINAPI CSkeletalViewerApp::Nui_ProcessThread()
+DWORD WINAPI NuiImpl::Nui_ProcessThread()
 {
 	const int numEvents = 4;
 	HANDLE hEvents[numEvents] = { m_hEvNuiProcessStop, m_hNextDepthFrameEvent, m_hNextColorFrameEvent, m_hNextSkeletonEvent };
@@ -421,23 +431,27 @@ DWORD WINAPI CSkeletalViewerApp::Nui_ProcessThread()
 		}
 
 		// Once per second, display the depth FPS
-		t = timeGetTime( );
-		if ( (t - m_LastDepthFPStime) > 1000 )
+		if (GUI_On && skeletalViewer->increment_num_GUIers())
 		{
-			int fps = ((m_DepthFramesTotal - m_LastDepthFramesTotal) * 1000 + 500) / (t - m_LastDepthFPStime);
-			PostMessageW( m_hWnd, WM_USER_UPDATE_FPS, IDC_FPS, fps );
-			m_LastDepthFramesTotal = m_DepthFramesTotal;
-			m_LastDepthFPStime = t;
-		}
-
-		// Blank the skeleton panel if we haven't found a skeleton recently
-		if ( (t - m_LastSkeletonFoundTime) > 250 )
-		{
-			if ( !m_bScreenBlanked )
+			t = timeGetTime( );
+			if ( (t - m_LastDepthFPStime) > 1000 )
 			{
-				Nui_BlankSkeletonScreen( GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), true );
-				m_bScreenBlanked = true;
+				int fps = ((m_DepthFramesTotal - m_LastDepthFramesTotal) * 1000 + 500) / (t - m_LastDepthFPStime);
+				PostMessageW( skeletalViewer->m_hWnd, WM_USER_UPDATE_FPS, IDC_FPS, fps );
+				m_LastDepthFramesTotal = m_DepthFramesTotal;
+				m_LastDepthFPStime = t;
 			}
+
+			// Blank the skeleton panel if we haven't found a skeleton recently
+			if ( (t - m_LastSkeletonFoundTime) > 250 )
+			{
+				if ( ! skeletalViewer->m_bScreenBlanked )
+				{
+					skeletalViewer->Nui_BlankSkeletonScreen( GetDlgItem( skeletalViewer->m_hWnd, IDC_SKELETALVIEW ), true );
+					skeletalViewer->m_bScreenBlanked = true;
+				}
+			}
+			skeletalViewer->decrement_num_GUIers();
 		}
 	}
 
@@ -449,7 +463,7 @@ DWORD WINAPI CSkeletalViewerApp::Nui_ProcessThread()
 //
 // Handle new color data
 //-------------------------------------------------------------------
-void CSkeletalViewerApp::Nui_GotColorAlert( )
+void NuiImpl::Nui_GotColorAlert( )
 {
 	NUI_IMAGE_FRAME imageFrame;
 
@@ -460,19 +474,23 @@ void CSkeletalViewerApp::Nui_GotColorAlert( )
 		return;
 	}
 
-	INuiFrameTexture * pTexture = imageFrame.pFrameTexture;
-	NUI_LOCKED_RECT LockedRect;
-	pTexture->LockRect( 0, &LockedRect, NULL, 0 );
-	if ( LockedRect.Pitch != 0 )
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
 	{
-		m_pDrawColor->Draw( static_cast<BYTE *>(LockedRect.pBits), LockedRect.size );
-	}
-	else
-	{
-		OutputDebugString( "Buffer length of received texture is bogus\r\n" );
-	}
+		INuiFrameTexture * pTexture = imageFrame.pFrameTexture;
+		NUI_LOCKED_RECT LockedRect;
+		pTexture->LockRect( 0, &LockedRect, NULL, 0 );
+		if ( LockedRect.Pitch != 0 )
+		{
+			skeletalViewer->m_pDrawColor->Draw( static_cast<BYTE *>(LockedRect.pBits), LockedRect.size );
+		}
+		else
+		{
+			OutputDebugString( "Buffer length of received texture is bogus\r\n" );
+		}
 
-	pTexture->UnlockRect( 0 );
+		pTexture->UnlockRect( 0 );
+		skeletalViewer->decrement_num_GUIers();
+	}
 
 	m_pNuiSensor->NuiImageStreamReleaseFrame( m_pVideoStreamHandle, &imageFrame );
 }
@@ -482,7 +500,7 @@ void CSkeletalViewerApp::Nui_GotColorAlert( )
 //
 // Handle new depth data
 //-------------------------------------------------------------------
-void CSkeletalViewerApp::Nui_GotDepthAlert( )
+void NuiImpl::Nui_GotDepthAlert( )
 {
 	NUI_IMAGE_FRAME imageFrame;
 
@@ -496,504 +514,54 @@ void CSkeletalViewerApp::Nui_GotDepthAlert( )
 		return;
 	}
 
-	INuiFrameTexture * pTexture = imageFrame.pFrameTexture;
-	NUI_LOCKED_RECT LockedRect;
-	pTexture->LockRect( 0, &LockedRect, NULL, 0 );
-	if ( 0 != LockedRect.Pitch )
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
 	{
-		DWORD frameWidth, frameHeight;
-
-		NuiImageResolutionToSize( imageFrame.eResolution, frameWidth, frameHeight );
-
-		// draw the bits to the bitmap
-		RGBQUAD * rgbrun = m_rgbWk;
-		USHORT * pBufferRun = (USHORT *)LockedRect.pBits;
-
-		// end pixel is start + width*height - 1
-		USHORT * pBufferEnd = pBufferRun + (frameWidth * frameHeight);
-
-		assert( frameWidth * frameHeight <= ARRAYSIZE(m_rgbWk) );
-
-		while ( pBufferRun < pBufferEnd )
+		INuiFrameTexture * pTexture = imageFrame.pFrameTexture;
+		NUI_LOCKED_RECT LockedRect;
+		pTexture->LockRect( 0, &LockedRect, NULL, 0 );
+		if ( 0 != LockedRect.Pitch )
 		{
-			*rgbrun = Nui_ShortToQuad_Depth( *pBufferRun );
-			++pBufferRun;
-			++rgbrun;
+			DWORD frameWidth, frameHeight;
+
+			NuiImageResolutionToSize( imageFrame.eResolution, frameWidth, frameHeight );
+
+			// draw the bits to the bitmap
+			RGBQUAD * rgbrun = skeletalViewer->m_rgbWk;
+			USHORT * pBufferRun = (USHORT *)LockedRect.pBits;
+
+			// end pixel is start + width*height - 1
+			USHORT * pBufferEnd = pBufferRun + (frameWidth * frameHeight);
+
+			assert( frameWidth * frameHeight <= ARRAYSIZE(skeletalViewer->m_rgbWk) );
+
+			while ( pBufferRun < pBufferEnd )
+			{
+				*rgbrun = skeletalViewer->Nui_ShortToQuad_Depth( *pBufferRun );
+				++pBufferRun;
+				++rgbrun;
+			}
+
+			skeletalViewer->m_pDrawDepth->Draw( (BYTE*) skeletalViewer->m_rgbWk, frameWidth * frameHeight * 4 );
+		}
+		else
+		{
+			OutputDebugString( "Buffer length of received texture is bogus\r\n" );
 		}
 
-		m_pDrawDepth->Draw( (BYTE*) m_rgbWk, frameWidth * frameHeight * 4 );
+		pTexture->UnlockRect( 0 );
+		skeletalViewer->decrement_num_GUIers();
 	}
-	else
-	{
-		OutputDebugString( "Buffer length of received texture is bogus\r\n" );
-	}
-
-	pTexture->UnlockRect( 0 );
 
 	m_pNuiSensor->NuiImageStreamReleaseFrame( m_pDepthStreamHandle, &imageFrame );
 }
 
-void CSkeletalViewerApp::Nui_BlankSkeletonScreen (HWND hWnd, bool getDC )
-{
-	HDC hdc = getDC ? GetDC( hWnd ) : m_SkeletonDC;
-
-	RECT rct;
-	GetClientRect( hWnd, &rct );
-	PatBlt( hdc, 0, 0, rct.right, rct.bottom, BLACKNESS );
-
-	if ( getDC )
-	{
-		ReleaseDC( hWnd, hdc );
-	}
-}
-
-void CSkeletalViewerApp::Nui_DrawSkeletonSegment( NUI_SKELETON_DATA * pSkel, int numJoints, ... )
-{
-	va_list vl;
-	va_start(vl,numJoints);
-
-	POINT segmentPositions[NUI_SKELETON_POSITION_COUNT];
-	int segmentPositionsCount = 0;
-
-	DWORD polylinePointCounts[NUI_SKELETON_POSITION_COUNT];
-	int numPolylines = 0;
-	int currentPointCount = 0;
-
-	// Note the loop condition: We intentionally run one iteration beyond the
-	// last element in the joint list, so we can properly end the final polyline.
-	for ( int iJoint = 0; iJoint <= numJoints; iJoint++ )
-	{
-		if ( iJoint < numJoints )
-		{
-			NUI_SKELETON_POSITION_INDEX jointIndex = va_arg( vl, NUI_SKELETON_POSITION_INDEX );
-
-			if ( pSkel->eSkeletonPositionTrackingState[jointIndex] != NUI_SKELETON_POSITION_NOT_TRACKED )
-			{
-				// This joint is tracked: add it to the array of segment positions.            
-				segmentPositions[segmentPositionsCount] = m_Points[jointIndex];
-				segmentPositionsCount++;
-				currentPointCount++;
-
-				// Fully processed the current joint; move on to the next one
-				continue;
-			}
-		}
-
-		// If we fall through to here, we're either beyond the last joint, or
-		// the current joint is not tracked: end the current polyline here.
-		if ( currentPointCount > 1 )
-		{
-			// Current polyline already has at least two points: save the count.
-			polylinePointCounts[numPolylines++] = currentPointCount;
-		}
-		else if ( currentPointCount == 1 )
-		{
-			// Current polyline has only one point: ignore it.
-			segmentPositionsCount--;
-		}
-		currentPointCount = 0;
-	}
-
-#ifdef _DEBUG
-	// We should end up with no more points in segmentPositions than the
-	// original number of joints.
-	assert(segmentPositionsCount <= numJoints);
-
-	int totalPointCount = 0;
-	for (int i = 0; i < numPolylines; i++)
-	{
-		// Each polyline should contain at least two points.
-		assert(polylinePointCounts[i] > 1);
-
-		totalPointCount += polylinePointCounts[i];
-	}
-
-	// Total number of points in all polylines should be the same as number
-	// of points in segmentPositions.
-	assert(totalPointCount == segmentPositionsCount);
-#endif
-
-	if (numPolylines > 0)
-	{
-		PolyPolyline( m_SkeletonDC, segmentPositions, polylinePointCounts, numPolylines );
-	}
-
-	va_end(vl);
-}
-
-void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor )
-{
-	HGDIOBJ hOldObj = SelectObject( m_SkeletonDC, m_Pen[WhichSkeletonColor % m_PensTotal] );
-
-	RECT rct;
-	GetClientRect(hWnd, &rct);
-	int width = rct.right;
-	int height = rct.bottom;
-
-	if ( m_Pen[0] == NULL )
-	{
-		for (int i = 0; i < m_PensTotal; i++)
-		{
-			m_Pen[i] = CreatePen( PS_SOLID, width / 80, g_SkeletonColors[i] );
-		}
-	}
-
-	int i;
-	USHORT depth;
-	for (i = 0; i < NUI_SKELETON_POSITION_COUNT; i++)
-	{
-		NuiTransformSkeletonToDepthImage( pSkel->SkeletonPositions[i], &m_Points[i].x, &m_Points[i].y, &depth );
-
-		m_Points[i].x = (m_Points[i].x * width) / 320;
-		m_Points[i].y = (m_Points[i].y * height) / 240;
-	}
-
-	SelectObject(m_SkeletonDC,m_Pen[WhichSkeletonColor%m_PensTotal]);
-
-	Nui_DrawSkeletonSegment(pSkel,4,NUI_SKELETON_POSITION_HIP_CENTER, NUI_SKELETON_POSITION_SPINE, NUI_SKELETON_POSITION_SHOULDER_CENTER, NUI_SKELETON_POSITION_HEAD);
-	Nui_DrawSkeletonSegment(pSkel,5,NUI_SKELETON_POSITION_SHOULDER_CENTER, NUI_SKELETON_POSITION_SHOULDER_LEFT, NUI_SKELETON_POSITION_ELBOW_LEFT, NUI_SKELETON_POSITION_WRIST_LEFT, NUI_SKELETON_POSITION_HAND_LEFT);
-	Nui_DrawSkeletonSegment(pSkel,5,NUI_SKELETON_POSITION_SHOULDER_CENTER, NUI_SKELETON_POSITION_SHOULDER_RIGHT, NUI_SKELETON_POSITION_ELBOW_RIGHT, NUI_SKELETON_POSITION_WRIST_RIGHT, NUI_SKELETON_POSITION_HAND_RIGHT);
-	Nui_DrawSkeletonSegment(pSkel,5,NUI_SKELETON_POSITION_HIP_CENTER, NUI_SKELETON_POSITION_HIP_LEFT, NUI_SKELETON_POSITION_KNEE_LEFT, NUI_SKELETON_POSITION_ANKLE_LEFT, NUI_SKELETON_POSITION_FOOT_LEFT);
-	Nui_DrawSkeletonSegment(pSkel,5,NUI_SKELETON_POSITION_HIP_CENTER, NUI_SKELETON_POSITION_HIP_RIGHT, NUI_SKELETON_POSITION_KNEE_RIGHT, NUI_SKELETON_POSITION_ANKLE_RIGHT, NUI_SKELETON_POSITION_FOOT_RIGHT);
-
-	// Draw the joints in a different color
-	for ( i = 0; i < NUI_SKELETON_POSITION_COUNT ; i++ )
-	{
-		if ( pSkel->eSkeletonPositionTrackingState[i] != NUI_SKELETON_POSITION_NOT_TRACKED )
-		{
-			HPEN hJointPen;
-
-			hJointPen = CreatePen( PS_SOLID, 9, g_JointColorTable[i] );
-			hOldObj = SelectObject( m_SkeletonDC, hJointPen );
-
-			MoveToEx( m_SkeletonDC, m_Points[i].x, m_Points[i].y, NULL );
-			LineTo( m_SkeletonDC, m_Points[i].x, m_Points[i].y );
-
-			SelectObject( m_SkeletonDC, hOldObj );
-			DeleteObject( hJointPen );
-		}
-
-	}
-
-	if (m_bAppTracking)
-	{
-		Nui_DrawSkeletonId(pSkel, hWnd, WhichSkeletonColor);
-	}
-
-	// Draw the gesture hitboxes
-	if (gestureDetectors[WhichSkeletonColor] != NULL)
-	{
-		// This ensures the proper per-skeleton state.
-		GestureDetector* gestureDetector = gestureDetectors[WhichSkeletonColor];
-		//// Cancel hitboxes not needed, since hands on head is both self-apparent and hitboxes could be confused with the salute hitboxes
-		// Always draw the 'cancel' hitboxes
-		// HPEN hCancelPen;
-		// hCancelPen = CreatePen(PS_DOT, 1, RGB(0,0,255));
-		// hOldObj = SelectObject(m_SkeletonDC, hCancelPen);
-		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_RIGHT], detectRange/2);
-		// DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SHOULDER_LEFT], detectRange/2);
-		// SelectObject( m_SkeletonDC, hOldObj );
-		// DeleteObject(hCancelPen);
-
-		// Make a new pen for the gesture hitboxes
-		HPEN hGesturePen;
-		// Hard-code to red for now
-		hGesturePen = CreatePen(PS_DASH, 1, RGB(255,0,0));
-		hOldObj = SelectObject(m_SkeletonDC, hGesturePen);
-
-		// Where we draw the box is going to depend on what gesture state we're in
-		Vector4 headPoint;
-		Vector4 spinePoint;
-		// Vector4 magnifyPoint;
-		// Vector4 movePoint;
-		Vector4 centerPoint;
-		Vector4 upPoint, downPoint, leftPoint, rightPoint;
-
-		switch (gestureDetector->state->state)
-		{
-		case OFF:
-			// Draw a detectRange box around the head
-			DrawBox(pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD], detectRange/2);
-			break;
-		case SALUTE1:
-			// Up and away from the head, both hands
-			headPoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
-			headPoint.y += saluteUp;
-			if (gestureDetector->hand == RIGHT)
-			{
-				headPoint.x += saluteOver;
-			}
-			else
-			{
-				headPoint.x -= saluteOver;
-			}
-			DrawBox(headPoint, detectRange/2);
-			break;
-		case SALUTE2:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			if (allowMagnifyGestures)
-			{
-				DrawBox(spinePoint, detectRange/2);			
-				DrawBox(centerPoint, detectRange/2);
-			}
-			else
-			{
-				DrawBox(centerPoint, detectRange/2);
-			}
-			break;
-		case BODYCENTER:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			DrawBox(centerPoint, detectRange/2);
-			break;
-		case MOVECENTER:
-		case MOVEUP:
-		case MOVEDOWN:
-		case MOVERIGHT:
-		case MOVELEFT:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			DrawBox(centerPoint, centerBoxSize/2);
-			DrawX(centerPoint);
-			break;
-			//case MOVE:
-			//	spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			//	centerPoint = spinePoint;
-			//	if (gestureDetector->hand == RIGHT)
-			//	{
-			//		centerPoint.x += centerRightOver;
-			//	} 
-			//	else 
-			//	{
-			//		centerPoint.x -= centerLeftOver;
-			//	}
-			//	DrawBox(centerPoint, detectRange/2);
-			//	break;
-		case MAGNIFYCENTER:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			upPoint = centerPoint;
-			upPoint.y += directionRadius;
-			downPoint = centerPoint;
-			downPoint.y -= directionRadius;
-			rightPoint = centerPoint;
-			rightPoint.x += directionRadius;
-			leftPoint = centerPoint;
-			leftPoint.x -= directionRadius;
-			DrawBox(upPoint, detectRange/2);
-			DrawBox(downPoint, detectRange/2);
-			DrawBox(leftPoint, detectRange/2);
-			DrawBox(rightPoint, detectRange/2);
-			break;
-		case MAGNIFYUP:
-		case MAGNIFYDOWN:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			rightPoint = centerPoint;
-			rightPoint.x += directionRadius;
-			leftPoint = centerPoint;
-			leftPoint.x -= directionRadius;
-			DrawBox(leftPoint, detectRange/2);
-			DrawBox(rightPoint, detectRange/2);
-			break;
-		case MAGNIFYLEFT:
-		case MAGNIFYRIGHT:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			upPoint = centerPoint;
-			upPoint.y += directionRadius;
-			downPoint = centerPoint;
-			downPoint.y -= directionRadius;
-			DrawBox(upPoint, detectRange/2);
-			DrawBox(downPoint, detectRange/2);
-			break;
-		}
-
-		// Cleanup
-		SelectObject( m_SkeletonDC, hOldObj );
-		DeleteObject(hGesturePen);
-	}
-}
-
-void CSkeletalViewerApp::Nui_DrawSkeletonId( NUI_SKELETON_DATA * pSkel, HWND hWnd, int WhichSkeletonColor )
-{
-	RECT rct;
-	GetClientRect( hWnd, &rct );
-
-	float fx = 0, fy = 0;
-
-	NuiTransformSkeletonToDepthImage( pSkel->Position, &fx, &fy );
-
-	int skelPosX = (int)( fx * rct.right + 0.5f );
-	int skelPosY = (int)( fy * rct.bottom + 0.5f );
-
-	WCHAR number[20];
-	size_t length;
-
-	if ( FAILED(StringCchPrintfW(number, ARRAYSIZE(number), L"%d", pSkel->dwTrackingID)) )
-	{
-		return;
-	}
-
-	if ( FAILED(StringCchLengthW(number, ARRAYSIZE(number), &length)) )
-	{
-		return;
-	}
-
-	if ( m_hFontSkeletonId == NULL )
-	{
-		LOGFONT lf;
-		GetObject( (HFONT)GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf );
-		lf.lfHeight *= 2;
-		m_hFontSkeletonId = CreateFontIndirect( &lf );
-	}
-
-	HGDIOBJ hLastFont = SelectObject( m_SkeletonDC, m_hFontSkeletonId );
-	SetTextAlign( m_SkeletonDC, TA_CENTER );
-	SetTextColor( m_SkeletonDC, g_SkeletonColors[WhichSkeletonColor] );
-	SetBkColor( m_SkeletonDC, RGB(0, 0, 0) );
-
-	TextOutW( m_SkeletonDC, skelPosX, skelPosY, number, (int)length);
-
-	SelectObject( m_SkeletonDC, hLastFont );
-}
-
-// Draw a box around a skeletal position
-BOOL CSkeletalViewerApp::DrawBox(Vector4& s_point, FLOAT radius)
-{
-	RECT rct;
-	GetClientRect(GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), &rct);
-	int scaleX = rct.right;
-	int scaleY = rct.bottom;
-
-	// s_ denotes skeleton-space point
-	// Translate it to an image-space point
-	Vector4 s_ul = s_point;
-	Vector4 s_ur = s_point;
-	Vector4 s_ll = s_point;
-	Vector4 s_lr = s_point;
-
-	s_ul.x -= radius;
-	s_ul.y += radius;
-	s_ur.x += radius;
-	s_ur.y += radius;
-	s_ll.x -= radius;
-	s_ll.y -= radius;
-	s_lr.x += radius;
-	s_lr.y -= radius;
-
-	// Yes, 5 points in a rectangle since we want to join the start and end
-	const unsigned int NUM_POINTS = 5;
-	Vector4* s_points[NUM_POINTS] = {&s_ul, &s_ur, &s_lr, &s_ll, &s_ul};
-	POINT i_points[NUM_POINTS];
-
-	// Convert skeleton-space points to image-space points (i_points)
-	LONG lx=0, ly=0;
-	for (int i = 0; i < NUM_POINTS; i++)
-	{
-		USHORT dummy;
-		NuiTransformSkeletonToDepthImage( *(s_points[i]), &lx, &ly, &dummy );
-		i_points[i].x = (int) ( lx * scaleX) / 320;
-		i_points[i].y = (int) ( ly * scaleY) / 240;
-	}
-
-	// Actually draw the rectangle from lines
-	return Polyline(m_SkeletonDC, i_points, NUM_POINTS);
-}
-
-// Draw an X to the corners from the given position
-void CSkeletalViewerApp::DrawX(Vector4& s_point)
-{
-	RECT rct;
-	GetClientRect(GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), &rct);
-	int scaleX = rct.right;
-	int scaleY = rct.bottom;
-
-	// Convert the point's X and Y to image coordinates
-	LONG lx=0, ly=0;
-	Vector4 i_point;
-	USHORT dummy;
-	NuiTransformSkeletonToDepthImage( s_point, &lx, &ly, &dummy );
-	i_point.x = (int) ( lx * scaleX) / 320;
-	i_point.y = (int) ( ly * scaleY) / 240;
-
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x - scaleX, i_point.y - scaleY);
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x + scaleX, i_point.y - scaleY);
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x - scaleX, i_point.y + scaleY);
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x + scaleX, i_point.y + scaleY);
-}
-
-void CSkeletalViewerApp::Nui_DoDoubleBuffer( HWND hWnd, HDC hDC )
-{
-	RECT rct;
-	GetClientRect(hWnd, &rct);
-
-	HDC hdc = GetDC( hWnd );
-
-	BitBlt( hdc, 0, 0, rct.right, rct.bottom, hDC, 0, 0, SRCCOPY );
-
-	ReleaseDC( hWnd, hdc );
-}
 
 //-------------------------------------------------------------------
 // Nui_GotSkeletonAlert
 //
 // Handle new skeleton data
 //-------------------------------------------------------------------
-void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
+void NuiImpl::Nui_GotSkeletonAlert( )
 {
 	NUI_SKELETON_FRAME SkeletonFrame = {0};
 
@@ -1015,7 +583,8 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 			}
 
 			if( SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_TRACKED ||
-				(SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_POSITION_ONLY && m_bAppTracking))
+				(SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_POSITION_ONLY
+				 && GUI_On && m_bAppTracking))
 			{
 				bFoundSkeleton = true;
 				// If we don't have an active skeleton, whatever's tracked becomes the active one
@@ -1044,14 +613,22 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 	}
 
 	// we found a skeleton, re-start the skeletal timer
-	m_bScreenBlanked = false;
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
+	{
+		skeletalViewer->m_bScreenBlanked = false;
+		skeletalViewer->decrement_num_GUIers();
+	}
 	m_LastSkeletonFoundTime = timeGetTime( );
 
 	// Save the velocities via comparison with the previous skeleton frame
 	static NUI_SKELETON_FRAME prevFrame = SkeletonFrame;
 
 	// draw each skeleton color according to the slot within they are found.
-	Nui_BlankSkeletonScreen( GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), false );
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
+	{
+		skeletalViewer->Nui_BlankSkeletonScreen( GetDlgItem( skeletalViewer->m_hWnd, IDC_SKELETALVIEW ), false );
+		skeletalViewer->decrement_num_GUIers();
+	}
 
 	bool bSkeletonIdsChanged = false;
 	for ( int i = 0 ; i < NUI_SKELETON_COUNT; i++ )
@@ -1066,7 +643,11 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 		if ( SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_TRACKED &&
 			SkeletonFrame.SkeletonData[i].eSkeletonPositionTrackingState[NUI_SKELETON_POSITION_SHOULDER_CENTER] != NUI_SKELETON_POSITION_NOT_TRACKED)
 		{
-			Nui_DrawSkeleton( &SkeletonFrame.SkeletonData[i], GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), i );
+			if (GUI_On && skeletalViewer->increment_num_GUIers())
+			{
+				skeletalViewer->Nui_DrawSkeleton( &SkeletonFrame.SkeletonData[i], GetDlgItem( skeletalViewer->m_hWnd, IDC_SKELETALVIEW ), i );
+				skeletalViewer->decrement_num_GUIers();
+			}
 			if (i == activeSkeleton)
 			{
 				// Update distance data
@@ -1076,74 +657,72 @@ void CSkeletalViewerApp::Nui_GotSkeletonAlert( )
 				NuiTransformSkeletonToDepthImage(headPoint, &xcoord, &ycoord, &depthValue);
 				int depthInMM = (depthValue >> 3);
 				distanceInMM = depthInMM;
-				::PostMessageW(m_hWnd, WM_USER_UPDATE_DISTANCE, IDC_DISTANCE, depthInMM);
 
-				// Update user data
-				::PostMessageW(m_hWnd, WM_USER_UPDATE_USER, IDC_USER, i);
+				if (GUI_On && skeletalViewer->increment_num_GUIers())
+				{
+					::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_DISTANCE, IDC_DISTANCE, depthInMM);
+
+					// Update user data
+					::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_USER, IDC_USER, i);
+					skeletalViewer->decrement_num_GUIers();
+				}
 			}
 			// Remember, gesture detectors are now per-skeleton, but we still only want to detect gestures for tracked skeletons
 
 			// TODO: Don't try to detect gestures for messed-up skeletons
 			gestureDetectors[i]->detect(SkeletonFrame, prevFrame);
 		}
-		else if ( m_bAppTracking && SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_POSITION_ONLY )
+		else if ( GUI_On && m_bAppTracking && SkeletonFrame.SkeletonData[i].eTrackingState == NUI_SKELETON_POSITION_ONLY )
 		{
-			Nui_DrawSkeletonId( &SkeletonFrame.SkeletonData[i], GetDlgItem( m_hWnd, IDC_SKELETALVIEW ), i );
+			skeletalViewer->increment_num_GUIers();
+			skeletalViewer->Nui_DrawSkeletonId( &SkeletonFrame.SkeletonData[i], GetDlgItem( skeletalViewer->m_hWnd, IDC_SKELETALVIEW ), i );
+			skeletalViewer->decrement_num_GUIers();
 		}
 	}
 
-	if ( bSkeletonIdsChanged )
+	if ( bSkeletonIdsChanged && GUI_On)
 	{
-		UpdateTrackingComboBoxes();
+		skeletalViewer->increment_num_GUIers();
+		skeletalViewer->UpdateTrackingComboBoxes();
+		skeletalViewer->decrement_num_GUIers();
 	}
 
-	Nui_DoDoubleBuffer(GetDlgItem(m_hWnd,IDC_SKELETALVIEW), m_SkeletonDC);
+	if (GUI_On && skeletalViewer->increment_num_GUIers())
+	{
+		skeletalViewer->Nui_DoDoubleBuffer(GetDlgItem(skeletalViewer->m_hWnd,IDC_SKELETALVIEW), skeletalViewer->m_SkeletonDC);
+		skeletalViewer->decrement_num_GUIers();
+	}
 
 	prevFrame = SkeletonFrame;
 }
 
-//-------------------------------------------------------------------
-// Nui_ShortToQuad_Depth
-//
-// Get the player colored depth value
-//-------------------------------------------------------------------
-RGBQUAD CSkeletalViewerApp::Nui_ShortToQuad_Depth( USHORT s )
-{
-	USHORT RealDepth = NuiDepthPixelToDepth(s);
-	USHORT Player    = NuiDepthPixelToPlayerIndex(s);
-
-	// transform 13-bit depth information into an 8-bit intensity appropriate
-	// for display (we disregard information in most significant bit)
-	BYTE intensity = (BYTE)~(RealDepth >> 4);
-
-	// tint the intensity by dividing by per-player values
-	RGBQUAD color;
-	color.rgbRed   = intensity >> g_IntensityShiftByPlayerR[Player];
-	color.rgbGreen = intensity >> g_IntensityShiftByPlayerG[Player];
-	color.rgbBlue  = intensity >> g_IntensityShiftByPlayerB[Player];
-
-	return color;
-}
-
-void CSkeletalViewerApp::Nui_SetApplicationTracking(bool applicationTracks)
+void NuiImpl::Nui_SetApplicationTracking(bool applicationTracks)
 {
 	if ( HasSkeletalEngine(m_pNuiSensor) )
 	{
 		HRESULT hr = m_pNuiSensor->NuiSkeletonTrackingEnable( m_hNextSkeletonEvent, applicationTracks ? NUI_SKELETON_TRACKING_FLAG_TITLE_SETS_TRACKED_SKELETONS : 0);
 		if ( FAILED( hr ) )
 		{
-			MessageBoxResource(IDS_ERROR_SKELETONTRACKING, MB_OK | MB_ICONHAND);
+			if (GUI_On && skeletalViewer->increment_num_GUIers())
+			{
+				skeletalViewer->MessageBoxResource(IDS_ERROR_SKELETONTRACKING, MB_OK | MB_ICONHAND);
+				skeletalViewer->decrement_num_GUIers();
+			}
 		}
 	}
 }
 
-void CSkeletalViewerApp::Nui_SetTrackedSkeletons(int skel1, int skel2)
+void NuiImpl::Nui_SetTrackedSkeletons(int skel1, int skel2)
 {
 	m_TrackedSkeletonIds[0] = skel1;
 	m_TrackedSkeletonIds[1] = skel2;
 	DWORD tracked[NUI_SKELETON_MAX_TRACKED_COUNT] = { skel1, skel2 };
 	if ( FAILED(m_pNuiSensor->NuiSkeletonSetTrackedSkeletons(tracked)) )
 	{
-		MessageBoxResource(IDS_ERROR_SETTRACKED, MB_OK | MB_ICONHAND);
+		if (GUI_On && skeletalViewer->increment_num_GUIers())
+		{
+			skeletalViewer->MessageBoxResource(IDS_ERROR_SETTRACKED, MB_OK | MB_ICONHAND);
+			skeletalViewer->decrement_num_GUIers();
+		}
 	}
 }
