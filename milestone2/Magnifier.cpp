@@ -73,7 +73,7 @@ RECT                viewfinderWindowRect;
 RECT                overlayWindowRect;
 RECT                hostWindowRect;
 BOOL                isMagnifierOff = FALSE;
-BOOL                allowMagnifyGestures = FALSE;
+BOOL                allowMagnifyGestures = TRUE;
 BOOL                showOverlays = TRUE;
 float               magnificationFloor = 0.0f;
 int                 distanceInMM = 0;

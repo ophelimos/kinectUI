@@ -81,9 +81,9 @@ void NuiImpl::Nui_Zero()
 	m_DepthFramesTotal = 0;
 	m_LastDepthFPStime = 0;
 	m_LastDepthFramesTotal = 0;
-	// The ZeroMemory versions cause memory corruption.  The loop
-	// versions don't.  I don't understand why, but avoiding
-	// memory corruption is a good thing.
+	// The ZeroMemory versions cause memory corruption.
+	// The reason is that sizeof(m_SkeletonIds) is larger than NUI_SKELETON_MAX_TRACKED_COUNT.  (24, rather than 8)
+	// It's not a problem with ZeroMemory
 	// ZeroMemory(m_SkeletonIds,sizeof(m_SkeletonIds));
 	for (int i = 0; i < NUI_SKELETON_COUNT; i++)
 	{
@@ -211,23 +211,11 @@ HRESULT NuiImpl::Nui_Init( )
 	}
 
 	// Start up the skeletal viewer at this point
-	if (skeletalViewer == NULL)
+	if (skeletalViewer == NULL && showSkeletalViewer)
 	{
-		if (showSkeletalViewer)
-		{
-			// Make a CSkeletalViewerApp object
-			skeletalViewer = new CSkeletalViewerApp(this);
-			HRESULT hr = skeletalViewer->SV_Init();
-			if (FAILED(hr))
-			{
-				skeletalViewer->MessageBoxResource( IDS_ERROR_NUICREATE, MB_OK | MB_ICONHAND );
-				exit (1);
-			}
-		}
-	}
-	else
-	{
-		skeletalViewer->SV_Init();
+		// Make a CSkeletalViewerApp object
+		skeletalViewer = new CSkeletalViewerApp(this);
+		// The object itself will call SV_Init() when it starts (runs DisplayWindow)
 	}
 
 	m_hNextDepthFrameEvent = CreateEvent( NULL, TRUE, FALSE, NULL );

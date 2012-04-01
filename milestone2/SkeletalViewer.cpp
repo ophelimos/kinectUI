@@ -98,10 +98,10 @@ DWORD WINAPI StartKinectProcessing(LPVOID lpParam)
 	// Start up movement timer and handler
 	MoveAndMagnifyHandler* movementHandler = new MoveAndMagnifyHandler();
 	// Start up the NUI implementation
-	NuiImpl* nui_impl = new NuiImpl();
+		NuiImpl* nui_impl = new NuiImpl();
 
 	DWORD returnval = 0;
-	if (GUI_On)
+	if (skeletalViewer != NULL)
 	{
 		// Start up its window
 		HINSTANCE hInstance = static_cast<HINSTANCE>(lpParam);
@@ -113,7 +113,7 @@ DWORD WINAPI StartKinectProcessing(LPVOID lpParam)
 
 	// Don't quit until you're told to
 	Sleep(INFINITE);
-	WaitForSingleObject(quitMutex, INFINITE);
+//	WaitForSingleObject(quitMutex, INFINITE);
 
 	// Free gesture detectors
 	for (int ii = 0; ii < NUI_SKELETON_COUNT; ii++)
@@ -383,7 +383,7 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 	case WM_INITDIALOG:
 		{
 			// Clean state the class
-			//nui->Nui_Zero();
+			SV_Zero();
 			
 			LOGFONT lf;
 			
@@ -413,8 +413,8 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 			UpdateComboBox();
 			SendDlgItemMessage(m_hWnd, IDC_CAMERAS, CB_SETCURSEL, 0, 0);
 
-			// Re-init NUI
-			//nui->Nui_Init();
+			// Re-init the class
+			SV_Init();
 		}
 		break;
 
@@ -483,7 +483,7 @@ LRESULT CALLBACK CSkeletalViewerApp::WndProc(HWND hWnd, UINT message, WPARAM wPa
 							nui->Nui_Zero();
 							SV_Zero();
 							nui->Nui_Init(reinterpret_cast<BSTR>(::SendDlgItemMessage(m_hWnd, IDC_CAMERAS, CB_GETITEMDATA, index, 0)));
-							// SV_Init called from within Nui_Init
+							SV_Init();
 						}
 					}
 					break;
