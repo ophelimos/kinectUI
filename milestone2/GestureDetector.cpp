@@ -28,6 +28,7 @@ GestureDetector::GestureDetector(int userId)
 	lockingOn_move = FALSE;
 	lockingOn_magnify = FALSE;
 	lockonStartTime = 0;
+	// killGesturesStartTime = 0;
 }
 
 GestureDetector::~GestureDetector(void)
@@ -123,26 +124,76 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	{
 		if (id == activeSkeleton)
 		{
+			moveAmount_y = 0;
+			moveAmount_x = 0;
 			clearAndHideOverlay();
+			state->set(OFF);
 		}
 		state->set(OFF);
 	}
 
+	// Same thing if they make the "cancel" gesture
+	// The cancel gesture is to start the salute again
+	static BOOL cancelling = FALSE;
+	if (id == activeSkeleton && state->state != SALUTE1 && state->state != OFF)
+	{
+		if (! cancelling) {
+			cancelling = TRUE;
+			headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+			if (hand == RIGHT)
+			{
+				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+			}
+			else
+			{
+				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+			}
+
+			if (areClose3D(headPoint, handPoint, detectRange))
+			{
+				moveAmount_y = 0;
+				moveAmount_x = 0;
+				clearAndHideOverlay();
+				state->set(OFF);
+			}
+		}
+	}
+	else
+	{
+		cancelling = FALSE;
+	}
+
 	// If they make the "cancel" gesture, stop recognizing gestures
 	// Cancel gesture here is both hands touching.
-	if (id == activeSkeleton
-		&& areClose3D(leftHandPoint, rightHandPoint, handsTogether))
-	{
-		moveAmount_y = 0;
-		moveAmount_x = 0;
-		clearAndHideOverlay();
-		state->set(OFF);
-	}
+	// static BOOL cancelling = FALSE;
+	// if (id == activeSkeleton
+	// 	&& areClose3D(leftHandPoint, rightHandPoint, handsTogether))
+	// {
+	// 	if ( ! cancelling)
+	// 	{
+	// 		cancelling = TRUE;
+	// 		killGesturesStartTime = getTimeIn100NSIntervals();
+	// 	}
+	// 	else
+	// 	{
+	// 		if ( (curTime - killGesturesStartTime) > killGesturesTime)
+	// 		{
+	// 			moveAmount_y = 0;
+	// 			moveAmount_x = 0;
+	// 			clearAndHideOverlay();
+	// 			state->set(OFF);
+	// 		}
+	// 	}
+	// }
+	// else
+	// {
+	// 	cancelling = FALSE;
+	// }
 
 	// Click gesture
 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 	static BOOL amClicking = FALSE;
-	if (id == activeSkeleton
+	if (id == activeSkeleton && state->state == MOVECENTER
 		&&
 		(
 		((spinePoint.z - rightHandPoint.z) > clickDistance)
@@ -150,6 +201,26 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		)
 		)
 	{
+		if (showOverlays)
+		{
+			int ulx_small;
+			int ulx_ss;
+			int uly_small = (yRes/2) - (boxSmall/2);
+			int uly_ss = (yRes/2) - (boxSuperSmall/2);
+			if (hand == RIGHT)
+			{
+				ulx_small = (xRes*3/4) - (boxSmall/2);
+				ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
+			}
+			else
+			{
+				ulx_small = (xRes/4) - (boxSmall/2);
+				ulx_ss = (xRes/4) - (boxSuperSmall/2);
+			}
+			// Make the center swirls go red
+			drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 0);
+			drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 0);
+		}
 		if (! amClicking)
 		{
 			// It'd be nice if the screen could flash at this
@@ -333,20 +404,30 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 							clearOverlay();
 
 							int ulx;
+							int ulx_small;
+							int ulx_ss;
 							int uly = (yRes/2) - (boxLarge/2);
+							int uly_small = (yRes/2) - (boxSmall/2);
+							int uly_ss = (yRes/2) - (boxSuperSmall/2);
 							if (hand == RIGHT)
 							{
 								ulx = (xRes*3/4) - (boxLarge/2);
+								ulx_small = (xRes*3/4) - (boxSmall/2);
+								ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
 							}
 							else
 							{
 								ulx = (xRes/4) - (boxLarge/2);
+								ulx_small = (xRes/4) - (boxSmall/2);
+								ulx_ss = (xRes/4) - (boxSuperSmall/2);
 							}
 							drawTrapezoid(ulx, uly, Q_TOP, 0);
 							drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
 							// drawTrapezoid(ulx, uly, Q_RIGHT, 0);
 							// drawTrapezoid(ulx, uly, Q_LEFT, 0);
 							drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+							drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 1);
+							drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 1);
 							drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 						}
 					}
@@ -404,20 +485,30 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 							clearOverlay();
 
 							int ulx;
+							int ulx_small;
+							int ulx_ss;
 							int uly = (yRes/2) - (boxLarge/2);
+							int uly_small = (yRes/2) - (boxSmall/2);
+							int uly_ss = (yRes/2) - (boxSuperSmall/2);
 							if (hand == RIGHT)
 							{
 								ulx = (xRes*3/4) - (boxLarge/2);
+								ulx_small = (xRes*3/4) - (boxSmall/2);
+								ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
 							}
 							else
 							{
 								ulx = (xRes/4) - (boxLarge/2);
+								ulx_small = (xRes/4) - (boxSmall/2);
+								ulx_ss = (xRes/4) - (boxSuperSmall/2);
 							}
 							drawTrapezoid(ulx, uly, Q_TOP, 0);
 							drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
 							// drawTrapezoid(ulx, uly, Q_RIGHT, 0);
 							// drawTrapezoid(ulx, uly, Q_LEFT, 0);
 							drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+							drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 1);
+							drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 1);
 							drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 						}
 					}
@@ -513,15 +604,27 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			if (showOverlays)
 			{
 				int ulx;
+				int ulx_small;
+				int ulx_ss;
 				int uly = (yRes/2) - (boxLarge/2);
+				int uly_small = (yRes/2) - (boxSmall/2);
+				int uly_ss = (yRes/2) - (boxSuperSmall/2);
 				if (hand == RIGHT)
 				{
 					ulx = (xRes*3/4) - (boxLarge/2);
+					ulx_small = (xRes*3/4) - (boxSmall/2);
+					ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
 				}
 				else
 				{
 					ulx = (xRes/4) - (boxLarge/2);
+					ulx_small = (xRes/4) - (boxSmall/2);
+					ulx_ss = (xRes/4) - (boxSuperSmall/2);
 				}
+				// Overwrite old center stuff
+				drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 2);
+				drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 2);
+
 				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
 				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
 				/*drawTrapezoid(ulx, uly, Q_RIGHT, 0);
@@ -550,15 +653,27 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			if (showOverlays)
 			{
 				int ulx;
+				int ulx_small;
+				int ulx_ss;
 				int uly = (yRes/2) - (boxLarge/2);
+				int uly_small = (yRes/2) - (boxSmall/2);
+				int uly_ss = (yRes/2) - (boxSuperSmall/2);
 				if (hand == RIGHT)
 				{
 					ulx = (xRes*3/4) - (boxLarge/2);
+					ulx_small = (xRes*3/4) - (boxSmall/2);
+					ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
 				}
 				else
 				{
 					ulx = (xRes/4) - (boxLarge/2);
+					ulx_small = (xRes/4) - (boxSmall/2);
+					ulx_ss = (xRes/4) - (boxSuperSmall/2);
 				}
+				// Overwrite old center stuff
+				drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 2);
+				drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 2);
+
 				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
 				drawTrapezoid(ulx, uly, Q_TOP, 0);
 				/*drawTrapezoid(ulx, uly, Q_RIGHT, 0);
@@ -587,15 +702,27 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			if (showOverlays)
 			{
 				int ulx;
+				int ulx_small;
+				int ulx_ss;
 				int uly = (yRes/2) - (boxLarge/2);
+				int uly_small = (yRes/2) - (boxSmall/2);
+				int uly_ss = (yRes/2) - (boxSuperSmall/2);
 				if (hand == RIGHT)
 				{
 					ulx = (xRes*3/4) - (boxLarge/2);
+					ulx_small = (xRes*3/4) - (boxSmall/2);
+					ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
 				}
 				else
 				{
 					ulx = (xRes/4) - (boxLarge/2);
+					ulx_small = (xRes/4) - (boxSmall/2);
+					ulx_ss = (xRes/4) - (boxSuperSmall/2);
 				}
+				// Overwrite old center stuff
+				drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 2);
+				drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 2);
+				
 				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
 				/*drawTrapezoid(ulx, uly, Q_TOP, 0);
 				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);*/
@@ -624,15 +751,27 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			if (showOverlays)
 			{
 				int ulx;
+				int ulx_small;
+				int ulx_ss;
 				int uly = (yRes/2) - (boxLarge/2);
+				int uly_small = (yRes/2) - (boxSmall/2);
+				int uly_ss = (yRes/2) - (boxSuperSmall/2);
 				if (hand == RIGHT)
 				{
 					ulx = (xRes*3/4) - (boxLarge/2);
+					ulx_small = (xRes*3/4) - (boxSmall/2);
+					ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
 				}
 				else
 				{
 					ulx = (xRes/4) - (boxLarge/2);
+					ulx_small = (xRes/4) - (boxSmall/2);
+					ulx_ss = (xRes/4) - (boxSuperSmall/2);
 				}
+				// Overwrite old center stuff
+				drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 2);
+				drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 2);
+				
 				drawRectangle(ulx, uly, boxLarge, boxLarge, 0);
 				/*drawTrapezoid(ulx, uly, Q_TOP, 0);
 				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);*/
@@ -667,15 +806,29 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			if (showOverlays)
 			{
 				int ulx;
+				int ulx_small;
+				int ulx_ss;
 				int uly = (yRes/2) - (boxLarge/2);
+				int uly_small = (yRes/2) - (boxSmall/2);
+				int uly_ss = (yRes/2) - (boxSuperSmall/2);
 				if (hand == RIGHT)
 				{
 					ulx = (xRes*3/4) - (boxLarge/2);
+					ulx_small = (xRes*3/4) - (boxSmall/2);
+					ulx_ss = (xRes*3/4) - (boxSuperSmall/2);
 				}
 				else
 				{
 					ulx = (xRes/4) - (boxLarge/2);
+					ulx_small = (xRes/4) - (boxSmall/2);
+					ulx_ss = (xRes/4) - (boxSuperSmall/2);
 				}
+				if (! amClicking)
+				{
+					drawRectangle(ulx_small, uly_small, boxSmall, boxSmall, 1);
+					drawRectangle(ulx_ss, uly_ss, boxSuperSmall, boxSuperSmall, 1);
+				}
+				
 				drawTrapezoid(ulx, uly, Q_TOP, 0);
 				drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
 				/*drawTrapezoid(ulx, uly, Q_RIGHT, 0);

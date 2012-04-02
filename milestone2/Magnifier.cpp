@@ -86,7 +86,7 @@ int                 yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 Color               backgroundColor = Color(255, 255, 255, 255);
 extern int	    activeSkeleton;
 extern BOOL quit_properly;
-BOOL                showSkeletalViewer = TRUE;
+BOOL                showSkeletalViewer = FALSE;
 
 //
 // FUNCTION: WinMain()
@@ -495,7 +495,7 @@ BOOL SetupOverlay(HINSTANCE hInst)
 	{
 		return FALSE;
 	}
-	SetLayeredWindowAttributes(hwndOverlay, 0, 180, LWA_ALPHA);  
+	SetLayeredWindowAttributes(hwndOverlay, 0, 110, LWA_ALPHA);  
 
     ShowWindow(hwndOverlay, SW_HIDE);
 
@@ -786,9 +786,28 @@ void drawRectangle(int ulx, int uly, int width, int height, int c)
 		ShowWindow(hwndOverlay, SW_SHOW);
 	}
 	Graphics g(hwndOverlay);
-	int green = c*255;
-	int red = abs(green-255);
-	Pen pen(Color(255, (BYTE) red, (BYTE) green, 0), 10.0f);
+	BYTE green = 0;
+	BYTE red = 0;
+	BYTE blue = 0;
+	if (c == 0) 		// Red
+	{
+		green = 0;
+		red = 255;
+		blue = 0;
+	}
+	else if (c == 1) 		// Green
+	{
+		green = 255;
+		red = 0;
+		blue = 0;
+	}
+	else if (c == 2) 	// White
+	{
+		green = 255;
+		red = 255;
+		blue = 255;
+	}
+	Pen pen(Color(255, red, green, blue ), 10.0f);
 
 	Rect rectangle(ulx, uly, width, height);    
 	g.DrawRectangle( &pen, rectangle );        

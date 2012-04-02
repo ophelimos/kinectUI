@@ -27,11 +27,13 @@ const FLOAT handsTogether = 0.1f;
 const long long oneSecondTimeout = 10000000;
 const long long timeout = 10*oneSecondTimeout;
 const long long lockonTime = 2*oneSecondTimeout;
+/* const long long killGesturesTime = oneSecondTimeout; */
 const FLOAT saluteOver = 0.25f;
 const FLOAT saluteUp = 0.15f;
 const FLOAT centerRightOver = 0.30f;
 const FLOAT centerLeftOver = 0.25f;
 const FLOAT directionRadius = 0.30f;
+const int boxSuperSmall = 50;
 const int boxSmall = 100;
 const int boxLarge = 200;
 const int overlayCircleRadius = 150;
@@ -41,7 +43,7 @@ const int overlayCircleRadius = 150;
 //const float magnifyAmount = 0.1f;
 const FLOAT centerBoxSize = 0.15f;
 const int constantMovement = 10;
-const FLOAT clickDistance = 0.50;
+const FLOAT clickDistance = 0.58;
 
 enum Direction {
 	RIGHT,
@@ -78,6 +80,9 @@ public:
 	BOOL lockingOn_move;
 	BOOL lockingOn_magnify;
 	long long lockonStartTime;
+
+	/* Time to wait before recognizing hands together */
+	long long killGesturesStartTime;
 
 	/* Functions */
 	void detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRAME &prevFrame);
