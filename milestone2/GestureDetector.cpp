@@ -4,9 +4,12 @@
 #include <winuser.h>
 #include "Magnifier.h"
 
+// Disable "conditional expression is constant" warning
+#pragma warning( disable : 4127 )
+
 extern int activeSkeleton;
-extern LONG moveAmount_x;
-extern LONG moveAmount_y;
+extern FLOAT moveAmount_x;
+extern FLOAT moveAmount_y;
 extern float magnifyAmount;
 BOOL hideWindowOn = FALSE;
 extern float magnificationFloor;
@@ -22,7 +25,8 @@ GestureDetector::GestureDetector(int userId)
 	id = userId;
 	state = new GestureState(userId);
 	state->set(OFF);
-	lockingOn = FALSE;
+	lockingOn_move = FALSE;
+	lockingOn_magnify = FALSE;
 	lockonStartTime = 0;
 }
 
@@ -268,15 +272,15 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			if (areClose(spinePoint, handPoint, detectRange))
 			{
 				// Lock-on
-				if (! lockingOn)
+				if (! lockingOn_magnify)
 				{
-					lockingOn = TRUE;
+					lockingOn_magnify = TRUE;
 					lockonStartTime = getTimeIn100NSIntervals();
 					if (showOverlays)
 					{
 						clearOverlay();
 						drawLockOn(xRes/2, yRes/2);
-						drawText ((xRes/3), (yRes/10), L"Locking on to Movement Mode", 56);
+						drawText ((xRes/3), (yRes/10), L"Locking on to Magnification Mode", 56);
 					}
 				}
 				else // We're locking on already
@@ -284,13 +288,13 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 					curTime = getTimeIn100NSIntervals();
 					if ((curTime - lockonStartTime) > lockonTime)
 					{
-						state->set(BODYCENTER);
+						state->set(MAGNIFYLEFT);
 						startTime = getTimeIn100NSIntervals();
 						if (showOverlays)
 						{
 							clearOverlay();
 							drawRectangle ((xRes/2) - (boxLarge/2), (yRes/2) - (boxLarge/2), boxLarge, boxLarge, 1);
-							drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
+							drawText ((xRes/3), (yRes/10), L"Magnification Gesture Mode", 56);
 						}
 					}
 				}
@@ -299,9 +303,9 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			else if (areClose(centerPoint, handPoint, detectRange))
 			{
 				// Don't do anything during the dead time
-				if (! lockingOn)
+				if (! lockingOn_move)
 				{
-					lockingOn = TRUE;
+					lockingOn_move = TRUE;
 					lockonStartTime = getTimeIn100NSIntervals();
 					if (showOverlays)
 					{
@@ -314,7 +318,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 						{
 							drawLockOn(xRes/4, yRes/2);
 						}
-						drawText ((xRes/3), (yRes/10), L"Locking on to Magnification Mode", 56);
+						drawText ((xRes/3), (yRes/10), L"Locking on to Movement Mode", 56);
 					}
 				}
 				else
@@ -322,19 +326,36 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 					curTime = getTimeIn100NSIntervals();
 					if ((curTime - lockonStartTime) > lockonTime)
 					{
-						state->set(MAGNIFYCENTER);
+						state->set(MOVECENTER);
+						startTime = getTimeIn100NSIntervals();
 						if (showOverlays)
 						{
 							clearOverlay();
-							drawText ((xRes/3), (yRes/10), L"Magnify Gesture Mode", 56);
+
+							int ulx;
+							int uly = (yRes/2) - (boxLarge/2);
+							if (hand == RIGHT)
+							{
+								ulx = (xRes*3/4) - (boxLarge/2);
+							}
+							else
+							{
+								ulx = (xRes/4) - (boxLarge/2);
+							}
+							drawTrapezoid(ulx, uly, Q_TOP, 0);
+							drawTrapezoid(ulx, uly, Q_BOTTOM, 0);
+							// drawTrapezoid(ulx, uly, Q_RIGHT, 0);
+							// drawTrapezoid(ulx, uly, Q_LEFT, 0);
+							drawRectangle(ulx, uly, boxLarge, boxLarge, 1);
+							drawText ((xRes/3), (yRes/10), L"Movement Gesture Mode", 56);
 						}
-						startTime = getTimeIn100NSIntervals();
 					}
 				}
 				return;
 			}
 			// Nothing hit, so we're not locking on
-			lockingOn = FALSE;
+			lockingOn_move = FALSE;
+			lockingOn_magnify = FALSE;
 			if (showOverlays)
 			{
 				clearOverlay();
@@ -353,9 +374,9 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		{
 			if (areClose(centerPoint, handPoint, detectRange))
 			{
-				if (! lockingOn)
+				if (! lockingOn_move)
 				{
-					lockingOn = TRUE;
+					lockingOn_move = TRUE;
 					lockonStartTime = getTimeIn100NSIntervals();
 					if (showOverlays)
 					{
@@ -404,7 +425,7 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 				return;
 			}
 			// We're not close to anything, so turn off the lockon
-			lockingOn = FALSE;
+			lockingOn_move = FALSE;
 			if (showOverlays)
 			{
 				clearOverlay();
@@ -419,49 +440,49 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			}
 		}
 		break;
-	case BODYCENTER:
-		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-		centerPoint = spinePoint;
-		if (hand == RIGHT)
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			centerPoint.x += centerRightOver;
-		}
-		else
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			centerPoint.x -= centerLeftOver;
-		}
-		if (areClose(centerPoint, handPoint, detectRange))
-		{
-			if (hand == RIGHT)
-			{
-				// Center
-				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				// Vert
-				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-				drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-				// Horiz
-				drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-				drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			}
-			else
-			{
-				// Center
-				drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-				// Vert
-				drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-				drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
-				// Horiz
-				drawRectangle ((xRes/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-				drawRectangle ((xRes/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			}
-			state->set(MOVECENTER);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		// Otherwise, keep looking (until the timeout)
-		break;
+	// case BODYCENTER:
+	// 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+	// 	centerPoint = spinePoint;
+	// 	if (hand == RIGHT)
+	// 	{
+	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+	// 		centerPoint.x += centerRightOver;
+	// 	}
+	// 	else
+	// 	{
+	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+	// 		centerPoint.x -= centerLeftOver;
+	// 	}
+	// 	if (areClose(centerPoint, handPoint, detectRange))
+	// 	{
+	// 		if (hand == RIGHT)
+	// 		{
+	// 			// Center
+	// 			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+	// 			// Vert
+	// 			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+	// 			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+	// 			// Horiz
+	// 			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+	// 			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+	// 		}
+	// 		else
+	// 		{
+	// 			// Center
+	// 			drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+	// 			// Vert
+	// 			drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+	// 			drawRectangle ((xRes/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+	// 			// Horiz
+	// 			drawRectangle ((xRes/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+	// 			drawRectangle ((xRes/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+	// 		}
+	// 		state->set(MOVECENTER);
+	// 		startTime = getTimeIn100NSIntervals();
+	// 		return;
+	// 	}
+	// 	// Otherwise, keep looking (until the timeout)
+	// 	break;
 	case MOVECENTER:
 	case MOVEUP:
 	case MOVEDOWN:
@@ -690,53 +711,66 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// 	}
 		// 	// Otherwise, keep looking (until the timeout)
 		// 	break;
-	case MAGNIFYCENTER:
-		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-		centerPoint = spinePoint;
-		if (hand == RIGHT)
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			centerPoint.x += centerRightOver;
-		}
-		else
-		{
-			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			centerPoint.x -= centerLeftOver;
-		}
-		// Place the direction arrows
-		upPoint = centerPoint;
-		upPoint.y += directionRadius;
-		if (areClose(upPoint, handPoint, detectRange))
-		{
-			state->set(MAGNIFYUP);
-			return;
-		}
-		downPoint = centerPoint;
-		downPoint.y -= directionRadius;
-		if (areClose(downPoint, handPoint, detectRange))
-		{
-			state->set(MAGNIFYDOWN);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		rightPoint = centerPoint;
-		rightPoint.x += directionRadius;
-		if (areClose(rightPoint, handPoint, detectRange))
-		{
-			state->set(MAGNIFYRIGHT);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		leftPoint = centerPoint;
-		leftPoint.x -= directionRadius;
-		if (areClose(leftPoint, handPoint, detectRange))
-		{
-			state->set(MAGNIFYLEFT);
-			startTime = getTimeIn100NSIntervals();
-			return;
-		}
-		// Otherwise, keep looking (until the timeout)
-		break;
+	// case MAGNIFYCENTER:
+	// 	spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+	// 	centerPoint = spinePoint;
+	// 	if (hand == RIGHT)
+	// 	{
+	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+	// 		centerPoint.x += centerRightOver;
+	// 	}
+	// 	else
+	// 	{
+	// 		handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+	// 		centerPoint.x -= centerLeftOver;
+	// 	}
+	// 	// Place the direction arrows
+	// 	upPoint = centerPoint;
+	// 	upPoint.y += directionRadius;
+	// 	if (areClose(upPoint, handPoint, detectRange))
+	// 	{
+	// 		state->set(MAGNIFYUP);
+	// 		return;
+	// 	}
+	// 	downPoint = centerPoint;
+	// 	downPoint.y -= directionRadius;
+	// 	if (areClose(downPoint, handPoint, detectRange))
+	// 	{
+	// 		state->set(MAGNIFYDOWN);
+	// 		startTime = getTimeIn100NSIntervals();
+	// 		return;
+	// 	}
+	// 	rightPoint = centerPoint;
+	// 	rightPoint.x += directionRadius;
+	// 	if (areClose(rightPoint, handPoint, detectRange))
+	// 	{
+	// 		state->set(MAGNIFYRIGHT);
+	// 		startTime = getTimeIn100NSIntervals();
+	// 		return;
+	// 	}
+	// 	leftPoint = centerPoint;
+	// 	leftPoint.x -= directionRadius;
+	// 	if (areClose(leftPoint, handPoint, detectRange))
+	// 	{
+	// 		state->set(MAGNIFYLEFT);
+	// 		startTime = getTimeIn100NSIntervals();
+	// 		return;
+	// 	}
+	// 	if (showOverlays)
+	// 	{
+	// 		clearOverlay();
+	// 		drawText ((xRes/3), (yRes/10), L"Rotate clockwise to decrease magnification and vice-versa to increase", 56);
+	// 		// Center
+	// 		drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+	// 		// Vert
+	// 		drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+	// 		drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+	// 		// Horiz
+	// 		drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+	// 		drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+	// 	}
+	// 	// Otherwise, keep looking (until the timeout)
+	// 	break;
 	case MAGNIFYUP:
 		spinePoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
 		centerPoint = spinePoint;
@@ -789,6 +823,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			magnifyAmount -= abs(displacement_x + displacement_y);
 			startTime = getTimeIn100NSIntervals();
 			return;
+		}
+		if (showOverlays)
+		{
+			clearOverlay();
+			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
+			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			// Vert
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+			// Horiz
+			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
@@ -844,6 +890,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			magnifyAmount += abs(displacement_x + displacement_y);
 			startTime = getTimeIn100NSIntervals();
 			return;
+		}
+		if (showOverlays)
+		{
+			clearOverlay();
+			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
+			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			// Vert
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
+			// Horiz
+			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
@@ -904,6 +962,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// 	startTime = getTimeIn100NSIntervals();
 		// 	return;
 		// }
+		if (showOverlays)
+		{
+			clearOverlay();
+			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
+			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			// Vert
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+			// Horiz
+			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+		}
 		// Otherwise, keep looking (until the timeout)
 		break;
 	case MAGNIFYRIGHT:
@@ -963,6 +1033,18 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 		// 	startTime = getTimeIn100NSIntervals();
 		// 	return;
 		// }
+		if (showOverlays)
+		{
+			clearOverlay();
+			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
+			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			// Vert
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+			// Horiz
+			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+		}
 		// Otherwise, keep looking (until the timeout)
 		break;
 	}

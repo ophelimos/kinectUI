@@ -4,7 +4,8 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
-// This module provides sample code used to demonstrate Kinect NUI processing
+// Disable "conditional expression is constant" warning
+#pragma warning( disable : 4127 )
 
 // Note: 
 //     Platform SDK lib path should be added before the VC lib
@@ -25,7 +26,7 @@ BOOL                startWithDebugScreen = FALSE;
 extern int distanceInMM;
 CSkeletalViewerApp* skeletalViewer = NULL; // This is the skeletal viewer window.  If it's NULL, it doesn't exist.  If it's not, it does.
 extern BOOL allowMagnifyGestures;
-extern HANDLE quitMutex;
+extern BOOL quit_properly;
 
 // Variables used to deal with the problem that threads might be in a
 // GUI section when the GUI exits, and so we need to preserve the GUI
@@ -98,7 +99,7 @@ DWORD WINAPI StartKinectProcessing(LPVOID lpParam)
 	// Start up movement timer and handler
 	MoveAndMagnifyHandler* movementHandler = new MoveAndMagnifyHandler();
 	// Start up the NUI implementation
-		NuiImpl* nui_impl = new NuiImpl();
+	NuiImpl* nui_impl = new NuiImpl();
 
 	DWORD returnval = 0;
 	if (skeletalViewer != NULL)
@@ -112,8 +113,11 @@ DWORD WINAPI StartKinectProcessing(LPVOID lpParam)
 	}
 
 	// Don't quit until you're told to
-	Sleep(INFINITE);
-//	WaitForSingleObject(quitMutex, INFINITE);
+//	Sleep(INFINITE);
+	while (! quit_properly)
+	{
+		Sleep(1000);
+	}
 
 	// Free gesture detectors
 	for (int ii = 0; ii < NUI_SKELETON_COUNT; ii++)
@@ -808,19 +812,19 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 				DrawBox(centerPoint, detectRange/2);
 			}
 			break;
-		case BODYCENTER:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			DrawBox(centerPoint, detectRange/2);
-			break;
+		//case BODYCENTER:
+		//	spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		//	centerPoint = spinePoint;
+		//	if (gestureDetector->hand == RIGHT)
+		//	{
+		//		centerPoint.x += centerRightOver;
+		//	} 
+		//	else 
+		//	{
+		//		centerPoint.x -= centerLeftOver;
+		//	}
+		//	DrawBox(centerPoint, detectRange/2);
+		//	break;
 		case MOVECENTER:
 		case MOVEUP:
 		case MOVEDOWN:
@@ -852,30 +856,30 @@ void CSkeletalViewerApp::Nui_DrawSkeleton( NUI_SKELETON_DATA * pSkel, HWND hWnd,
 			//	}
 			//	DrawBox(centerPoint, detectRange/2);
 			//	break;
-		case MAGNIFYCENTER:
-			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
-			centerPoint = spinePoint;
-			if (gestureDetector->hand == RIGHT)
-			{
-				centerPoint.x += centerRightOver;
-			} 
-			else 
-			{
-				centerPoint.x -= centerLeftOver;
-			}
-			upPoint = centerPoint;
-			upPoint.y += directionRadius;
-			downPoint = centerPoint;
-			downPoint.y -= directionRadius;
-			rightPoint = centerPoint;
-			rightPoint.x += directionRadius;
-			leftPoint = centerPoint;
-			leftPoint.x -= directionRadius;
-			DrawBox(upPoint, detectRange/2);
-			DrawBox(downPoint, detectRange/2);
-			DrawBox(leftPoint, detectRange/2);
-			DrawBox(rightPoint, detectRange/2);
-			break;
+		// case MAGNIFYCENTER:
+		// 	spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
+		// 	centerPoint = spinePoint;
+		// 	if (gestureDetector->hand == RIGHT)
+		// 	{
+		// 		centerPoint.x += centerRightOver;
+		// 	} 
+		// 	else 
+		// 	{
+		// 		centerPoint.x -= centerLeftOver;
+		// 	}
+		// 	upPoint = centerPoint;
+		// 	upPoint.y += directionRadius;
+		// 	downPoint = centerPoint;
+		// 	downPoint.y -= directionRadius;
+		// 	rightPoint = centerPoint;
+		// 	rightPoint.x += directionRadius;
+		// 	leftPoint = centerPoint;
+		// 	leftPoint.x -= directionRadius;
+		// 	DrawBox(upPoint, detectRange/2);
+		// 	DrawBox(downPoint, detectRange/2);
+		// 	DrawBox(leftPoint, detectRange/2);
+		// 	DrawBox(rightPoint, detectRange/2);
+		// 	break;
 		case MAGNIFYUP:
 		case MAGNIFYDOWN:
 			spinePoint = pSkel->SkeletonPositions[NUI_SKELETON_POSITION_SPINE];
@@ -1018,20 +1022,19 @@ void CSkeletalViewerApp::DrawX(Vector4& s_point)
 
 	// Convert the point's X and Y to image coordinates
 	LONG lx=0, ly=0;
-	Vector4 i_point;
 	USHORT dummy;
 	NuiTransformSkeletonToDepthImage( s_point, &lx, &ly, &dummy );
-	i_point.x = (int) ( lx * scaleX) / 320;
-	i_point.y = (int) ( ly * scaleY) / 240;
+	int pointX = (int) ( lx * scaleX) / 320;
+	int pointY = (int) ( ly * scaleY) / 240;
 
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x - scaleX, i_point.y - scaleY);
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x + scaleX, i_point.y - scaleY);
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x - scaleX, i_point.y + scaleY);
-	MoveToEx(m_SkeletonDC, i_point.x, i_point.y, NULL);
-	LineTo(m_SkeletonDC, i_point.x + scaleX, i_point.y + scaleY);
+	MoveToEx(m_SkeletonDC, pointX, pointY, NULL);
+	LineTo(m_SkeletonDC, pointX - scaleX, pointY - scaleY);
+	MoveToEx(m_SkeletonDC, pointX, pointY, NULL);
+	LineTo(m_SkeletonDC, pointX + scaleX, pointY - scaleY);
+	MoveToEx(m_SkeletonDC, pointX, pointY, NULL);
+	LineTo(m_SkeletonDC, pointX - scaleX, pointY + scaleY);
+	MoveToEx(m_SkeletonDC, pointX, pointY, NULL);
+	LineTo(m_SkeletonDC, pointX + scaleX, pointY + scaleY);
 }
 
 void CSkeletalViewerApp::Nui_DoDoubleBuffer( HWND hWnd, HDC hDC )

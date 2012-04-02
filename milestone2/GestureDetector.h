@@ -75,7 +75,8 @@ public:
 	GestureState* state;
 	// Now that we have multiple detectors, we need to know which user we refer to
 	int id;
-	BOOL lockingOn;
+	BOOL lockingOn_move;
+	BOOL lockingOn_magnify;
 	long long lockonStartTime;
 
 	/* Functions */

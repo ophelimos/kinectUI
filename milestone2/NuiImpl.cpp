@@ -20,8 +20,8 @@ extern int distanceInMM;
 extern int activeSkeleton;
 extern GestureDetector* gestureDetectors[NUI_SKELETON_COUNT];
 extern BOOL allowMagnifyGestures;
-extern LONG moveAmount_x;
-extern LONG moveAmount_y;
+extern FLOAT moveAmount_x;
+extern FLOAT moveAmount_y;
 // The important one for splitting the functionality
 extern CSkeletalViewerApp* skeletalViewer;
 extern BOOL showSkeletalViewer;
@@ -447,7 +447,7 @@ DWORD WINAPI NuiImpl::Nui_ProcessThread()
 }
 
 //-------------------------------------------------------------------
-// Nui_GotDepthAlert
+// Nui_GotColorAlert
 //
 // Handle new color data
 //-------------------------------------------------------------------

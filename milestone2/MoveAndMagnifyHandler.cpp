@@ -1,19 +1,21 @@
 #include "MoveAndMagnifyHandler.h"
 #include "SkeletalViewer.h"
 
+// Disable "conditional expression is constant" warning
+#pragma warning( disable : 4127 )
+
 // Separated into a separate class, since there should only be one, 
 // and throwing a ton of static variables into GestureDetector gets cumbersome
 
 extern float magnificationFloor;
 extern CSkeletalViewerApp* skeletalViewer;
 
-// Another method of quitting
-HANDLE quitMutex;
-
 // Global variables, so GestureDetector can access them
-LONG moveAmount_x;
-LONG moveAmount_y;
+FLOAT moveAmount_x;
+FLOAT moveAmount_y;
 float magnifyAmount;
+
+BOOL quit_properly = FALSE;
 
 // Mutex
 extern BOOL GUI_On;
@@ -42,10 +44,6 @@ MoveAndMagnifyHandler::MoveAndMagnifyHandler()
 	{
 		exit(1);
 	}
-
-	// Create the mutex for waiting, and initially own it.
-	quitMutex = CreateMutex(NULL, FALSE, NULL);
-	WaitForSingleObject(quitMutex, INFINITE);
 }
 
 MoveAndMagnifyHandler::~MoveAndMagnifyHandler(void)
@@ -87,8 +85,8 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 		}
 
 		// Print the amounts
-		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MOVEX, IDC_MOVEX, moveAmount_x);
-		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MOVEY, IDC_MOVEY, moveAmount_y);
+		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MOVEX, IDC_MOVEX, (int) moveAmount_x);
+		::PostMessageW(skeletalViewer->m_hWnd, WM_USER_UPDATE_MOVEY, IDC_MOVEY, (int) moveAmount_y);
 		// Unfortunately, it doesn't take floating-point values, so fix-point the thing
 		FLOAT magnifyAmountx100 = magnifyAmount * 100;
 		int magnifyAmountInt = (int) (magnifyAmountx100);
@@ -98,7 +96,7 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 
 	if (GetAsyncKeyState(VK_F4))
 	{
-		ReleaseMutex(quitMutex);
+		quit_properly = TRUE;
 	}
 
 	// Adjust magnification
@@ -106,8 +104,8 @@ void CALLBACK MoveAndMagnifyHandler::TimerHandler(void* /*lpParameter*/, BOOLEAN
 	// Adjust position
 	POINT curPos;
 	GetCursorPos(&curPos);
-	curPos.x += moveAmount_x;
-	curPos.y += moveAmount_y;
+	curPos.x += (int) moveAmount_x;
+	curPos.y += (int) moveAmount_y;
 	SetCursorPos(curPos.x, curPos.y);
 
 	// Exponentially decrease amounts (friction)

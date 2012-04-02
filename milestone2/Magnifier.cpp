@@ -39,6 +39,9 @@
 #include "Magnifier.h"
 #include "GestureDetector.h"
 
+// Disable "conditional expression is constant" warning
+#pragma warning( disable : 4127 )
+
 // Make it easier to pick what part of the program you want to run.
 enum ProgramMode
 {
@@ -82,6 +85,7 @@ int                 xRes = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 int                 yRes = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 Color               backgroundColor = Color(255, 255, 255, 255);
 extern int	    activeSkeleton;
+extern BOOL quit_properly;
 BOOL                showSkeletalViewer = TRUE;
 
 //
@@ -139,6 +143,10 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
+			if (quit_properly)
+			{
+				break;
+			}
 		}
 
 		// Shut down.
@@ -752,7 +760,7 @@ Status drawText(int x1, int y1, WCHAR string[], int size)
 
 	// Create a solid background so the text is visible
 	SolidBrush backgroundBrush(Color(255, 0, 0, 0));
-	Rect backgroundRect(x1 - size, y1, size * strlen( (const char*) string) * 15, size);
+	Rect backgroundRect(x1 - size, y1, size * strlen( (const char*) string) * 16, size);
 	g.FillRectangle(&backgroundBrush, backgroundRect);
 
 	Status result = g.DrawString(string, -1, &font, pointF, &solidBrush);
@@ -787,6 +795,15 @@ void drawRectangle(int ulx, int uly, int width, int height, int c)
 
 	return;
 }
+
+// void drawArrow(int lx, int ly, int rx, int ry, int midOffset)
+// {
+// 	if (! IsWindowVisible(hwndOverlay))
+// 	{
+// 		ShowWindow(hwndOverlay, SW_SHOW);
+// 	}
+// 	Graphics g(hwndOverlay);
+// }
 
 Status drawTrapezoid(int ulx, int uly, Quadrant quad, int on)
 {

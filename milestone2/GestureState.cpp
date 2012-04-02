@@ -64,9 +64,9 @@ void GestureState::updateDebug()
 	case SALUTE2:
 		statename = _strdup("SALUTE2");
 		break;
-	case BODYCENTER:
-		statename = _strdup("BODYCENTER");
-		break;
+	// case BODYCENTER:
+	// 	statename = _strdup("BODYCENTER");
+	// 	break;
 		//case MAGNIFY:
 		//	statename = _strdup("MAGNIFY");
 		//	break;
@@ -100,9 +100,9 @@ void GestureState::updateDebug()
 	case MAGNIFYLEFT:
 		statename = _strdup("MAGNIFYLEFT");
 		break;
-	case MAGNIFYCENTER:
-		statename = _strdup("MAGNIFYCENTER");
-		break;
+	// case MAGNIFYCENTER:
+	// 	statename = _strdup("MAGNIFYCENTER");
+	// 	break;
 	default:
 		statename = _strdup("UNKNOWN");
 	}
