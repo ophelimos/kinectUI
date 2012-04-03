@@ -135,32 +135,34 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 	// Same thing if they make the "cancel" gesture
 	// The cancel gesture is to start the salute again
 	static BOOL cancelling = FALSE;
-	if (id == activeSkeleton && state->state != SALUTE1 && state->state != OFF)
+	if (cancelling || (id == activeSkeleton && state->state != SALUTE1 && state->state != OFF && state->state != SALUTE2))
 	{
-		if (! cancelling) {
-			cancelling = TRUE;
-			headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
-			if (hand == RIGHT)
+		// Headpoint already initialized above for the stop gesture
+		// headPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HEAD];
+		if (hand == RIGHT)
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
+		}
+		else
+		{
+			handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
+		}
+		if (areClose3D(headPoint, handPoint, detectRange))
+		{
+			if (! cancelling)
 			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_RIGHT];
-			}
-			else
-			{
-				handPoint = SkeletonData.SkeletonPositions[NUI_SKELETON_POSITION_HAND_LEFT];
-			}
-
-			if (areClose3D(headPoint, handPoint, detectRange))
-			{
+				cancelling = TRUE;
 				moveAmount_y = 0;
 				moveAmount_x = 0;
 				clearAndHideOverlay();
 				state->set(OFF);
 			}
+			return;
 		}
-	}
-	else
-	{
-		cancelling = FALSE;
+		else
+		{
+			cancelling = FALSE;
+		}
 	}
 
 	// If they make the "cancel" gesture, stop recognizing gestures
@@ -982,12 +984,22 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			clearOverlay();
 			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
 			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			int ulx;
+			int uly = (yRes/2) - (boxSmall/2);
+			if (hand == RIGHT)
+			{
+				ulx = (xRes*3/4) - (boxSmall/2);
+			}
+			else
+			{
+				ulx = (xRes/4) - (boxSmall/2);
+			}
 			// Vert
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 1);
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle (ulx, uly - overlayCircleRadius, boxSmall, boxSmall, 1);
+			drawRectangle (ulx, uly + overlayCircleRadius, boxSmall, boxSmall, 0);
 			// Horiz
-			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			drawRectangle (ulx - overlayCircleRadius, uly, boxSmall, boxSmall, 0);
+			drawRectangle (ulx + overlayCircleRadius, uly, boxSmall, boxSmall, 0);
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
@@ -1049,12 +1061,22 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			clearOverlay();
 			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
 			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			int ulx;
+			int uly = (yRes/2) - (boxSmall/2);
+			if (hand == RIGHT)
+			{
+				ulx = (xRes*3/4) - (boxSmall/2);
+			}
+			else
+			{
+				ulx = (xRes/4) - (boxSmall/2);
+			}
 			// Vert
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 1);
+			drawRectangle (ulx, uly - overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle (ulx, uly + overlayCircleRadius, boxSmall, boxSmall, 1);
 			// Horiz
-			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			drawRectangle (ulx - overlayCircleRadius, uly, boxSmall, boxSmall, 0);
+			drawRectangle (ulx + overlayCircleRadius, uly, boxSmall, boxSmall, 0);
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
@@ -1120,12 +1142,22 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			clearOverlay();
 			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
 			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			int ulx;
+			int uly = (yRes/2) - (boxSmall/2);
+			if (hand == RIGHT)
+			{
+				ulx = (xRes*3/4) - (boxSmall/2);
+			}
+			else
+			{
+				ulx = (xRes/4) - (boxSmall/2);
+			}
 			// Vert
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle (ulx, uly - overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle (ulx, uly + overlayCircleRadius, boxSmall, boxSmall, 0);
 			// Horiz
-			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
-			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
+			drawRectangle (ulx - overlayCircleRadius, uly, boxSmall, boxSmall, 1);
+			drawRectangle (ulx + overlayCircleRadius, uly, boxSmall, boxSmall, 0);
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;
@@ -1191,12 +1223,22 @@ void GestureDetector::detect(NUI_SKELETON_FRAME &SkeletonFrame, NUI_SKELETON_FRA
 			clearOverlay();
 			drawText ((xRes/3), (yRes/10), L"Clockwise = zoom in", 56);
 			drawText ((xRes/3), (yRes*9/10), L"Counter-Clockwise = zoom out", 56);
+			int ulx;
+			int uly = (yRes/2) - (boxSmall/2);
+			if (hand == RIGHT)
+			{
+				ulx = (xRes*3/4) - (boxSmall/2);
+			}
+			else
+			{
+				ulx = (xRes/4) - (boxSmall/2);
+			}
 			// Vert
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) - overlayCircleRadius, boxSmall, boxSmall, 0);
-			drawRectangle ((xRes*3/4) - (boxSmall/2), (yRes/2) - (boxSmall/2) + overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle (ulx, uly - overlayCircleRadius, boxSmall, boxSmall, 0);
+			drawRectangle (ulx, uly + overlayCircleRadius, boxSmall, boxSmall, 0);
 			// Horiz
-			drawRectangle ((xRes*3/4) - (boxSmall/2) - overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 0);
-			drawRectangle ((xRes*3/4) - (boxSmall/2) + overlayCircleRadius, (yRes/2) - (boxSmall/2), boxSmall, boxSmall, 1);
+			drawRectangle (ulx - overlayCircleRadius, uly, boxSmall, boxSmall, 0);
+			drawRectangle (ulx + overlayCircleRadius, uly, boxSmall, boxSmall, 1);
 		}
 		// Otherwise, keep looking (until the timeout)
 		break;

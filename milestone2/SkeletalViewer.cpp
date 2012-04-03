@@ -27,6 +27,7 @@ extern int distanceInMM;
 CSkeletalViewerApp* skeletalViewer = NULL; // This is the skeletal viewer window.  If it's NULL, it doesn't exist.  If it's not, it does.
 extern BOOL allowMagnifyGestures;
 extern BOOL quit_properly;
+NuiImpl* nui_impl;
 
 // Variables used to deal with the problem that threads might be in a
 // GUI section when the GUI exits, and so we need to preserve the GUI
@@ -99,7 +100,7 @@ DWORD WINAPI StartKinectProcessing(LPVOID lpParam)
 	// Start up movement timer and handler
 	MoveAndMagnifyHandler* movementHandler = new MoveAndMagnifyHandler();
 	// Start up the NUI implementation
-	NuiImpl* nui_impl = new NuiImpl();
+	nui_impl = new NuiImpl();
 
 	DWORD returnval = 0;
 	if (skeletalViewer != NULL)
@@ -128,6 +129,7 @@ DWORD WINAPI StartKinectProcessing(LPVOID lpParam)
 	delete movementHandler;
 	// And the NUI implementation
 	delete nui_impl;
+	nui_impl = NULL;
 	
 	return returnval;
 }

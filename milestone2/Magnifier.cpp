@@ -38,6 +38,7 @@
 *************************************************************************************************/
 #include "Magnifier.h"
 #include "GestureDetector.h"
+#include "NuiImpl.h"
 
 // Disable "conditional expression is constant" warning
 #pragma warning( disable : 4127 )
@@ -87,6 +88,7 @@ Color               backgroundColor = Color(255, 255, 255, 255);
 extern int	    activeSkeleton;
 extern BOOL quit_properly;
 BOOL                showSkeletalViewer = FALSE;
+extern NuiImpl* nui_impl;
 
 //
 // FUNCTION: WinMain()
@@ -143,7 +145,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
-			if (quit_properly)
+			if (quit_properly && nui_impl == NULL)
 			{
 				break;
 			}
